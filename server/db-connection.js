@@ -3,10 +3,10 @@ const express = require('express');
 const db_connection = express();
 db_connection.use(express.json())
 var con = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "CS6348"
+    host: "cs6348-project.crsmosm2myjt.us-east-2.rds.amazonaws.com",
+    user: "admin",
+    password: "AqpZo1I0QOpmcgjJ8FiU",
+    database: "CS6348_Proj"
 })
 
 db_connection.post('/getUser', async (req, res) => {
