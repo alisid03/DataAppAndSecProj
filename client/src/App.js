@@ -1,8 +1,9 @@
 import axios from 'axios';
 import './App.css';
 import TestLoginPage from './LoginPage/TestLoginPage';
+import AdminPage from "./AdminPage";
 import Home from './Home/Home';
-import { BrowserRouter as Router, Routes, Route, HashRouter } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, HashRouter, Link } from 'react-router-dom';
 
 //data will be the string we send from our server
 const apiCall = () => {
@@ -19,6 +20,7 @@ function App() {
       <Routes>
         <Route exact path='/' element={<TestLoginPage/>}></Route>
         <Route path='/home' element={<Home/>}></Route>
+        <Route path='/admin' element={<AdminPage/>}></Route>
       </Routes>
     </Router>
   );

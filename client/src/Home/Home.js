@@ -19,6 +19,11 @@ const Home = () => {
     }
   };
 
+  // when user clicks "request access" button, add userID,
+  const handleButtonClick2 = () => {
+
+  }
+
   return (
     <div style={styles.container}>
       <h1>Home Page</h1>
@@ -35,6 +40,9 @@ const Home = () => {
             {index + 1}
           </button>
         ))}
+      </div>
+      <div style={styles.buttonContainer}>
+        <button>Request Access</button>
       </div>
     </div>
   );

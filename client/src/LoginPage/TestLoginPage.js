@@ -43,10 +43,14 @@ export default function TestLoginPage() {
             }),
         });
         const responseJson = await response.json();
+        const isAdmin = responseJson.isAdmin;
         const access = responseJson.accessTables;
-        if(responseJson.status == ACCEPTED){
-            sessionStorage.setItem('access',access);
+        if(responseJson.status == ACCEPTED && !isAdmin) {
+            sessionStorage.setItem('access', access);
             navigate('/home')
+        }
+        else if(responseJson.status == ACCEPTED && isAdmin) {
+            navigate('/admin')
         }
         else {
             alert("Incorrect login");

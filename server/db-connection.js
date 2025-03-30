@@ -26,6 +26,38 @@ db_connection.post('/getUser', async (req, res) => {
     }
 });
 
+db_connection.post('/requestAccess', async (req, res) => {
+    try {
+        const result = await requestAccess(req);
+        console.log(result);
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+db_connection.get('/admin/getPendingRequests', async (req, res) => {
+    const query = `
+                SELECT username, page, request_time
+                 FROM requests
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM granted
+                    WHERE granted.username = requests.username
+                    AND granted.page = requests.page
+                    )
+                ORDER BY requested_at DESC
+  `;
+
+    con.query(query, (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: 'Failed to get pending requests' });
+        }
+        res.json(results);
+    });
+});
+
 async function getUsers(request) {
     return new Promise((resolve, reject) => {
         con.connect(function (err) {
@@ -33,7 +65,6 @@ async function getUsers(request) {
                 return reject(err);
             }
             console.log(request.body);
-            
             con.query("SELECT * FROM user WHERE username = ?", [request.body.username], function (err, result, fields) {
                 if (err) {
                     return reject(err);
@@ -44,5 +75,27 @@ async function getUsers(request) {
         });
     });
 }
+
+async function requestAccess(request) {
+    return new Promise((resolve, reject) => {
+        con.connect(function (err) {
+            if (err) {
+                return reject(err);
+            }
+            console.log(request.body);
+
+            // if its an array of access numbers, need to add all of them
+            con.query("INSERT INTO requests (username, page, request_time) VALUES (?,?,NOW()) ", [request.body.username, request.body.page], function (err, result, fields) {
+                if (err) {
+                    return reject(err);
+                }
+                console.log(result);
+                resolve(result[0]); // Resolve the promise with the result
+            });
+        });
+    });
+}
+
+
 
 module.exports = db_connection;
