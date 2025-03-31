@@ -5,28 +5,66 @@ function AdminPage() {
     const [requests, setRequests] = useState([]);
 
     useEffect(() => {
-        fetch('/admin/getPendingRequests') // TODO: need to set this up in backend
-            .then(res => res.json())
-            .then(data => setRequests(data));
+        const fetchRequests = async () => {
+            try {
+                const res = await fetch('http://localhost:8080/getPendingRequests');
+                const data = await res.json();
+                setRequests(data);
+            } catch (err) {
+                console.error('Error fetching requests:', err);
+            }
+        };
+        fetchRequests();
     }, []);
 
-    const handleApprove = (username, page) => {
-        fetch('/admin/approveAccess', {
+    const handleApprove = async (username, page) => {
+        await fetch('/approveAccess', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, page })
-        }).then(() => alert(`Approved access for ${username}`));
+        });
+    alert(`Approved access for ${username}`);
     };
 
+    const handleReject = async (username, page) => {
+        await fetch('/rejectAccess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, page })
+        });
+        alert(`Rejected access for ${username}`);
+    };
     return (
         <div>
-            <h1>Admin Page</h1>
-            {requests.map(req => (
-                <div key={req.id}>
-                    <p>{req.username} wants access to {req.page}</p>
-                    <button onClick={() => handleApprove(req.username, req.page)}>Approve</button>
-                </div>
-            ))}
+            <h1>Admin Access Requests</h1>
+            {requests.length === 0 ? (
+                <p>No pending requests</p>
+            ): (
+                <table border="1" cellPadding="10">
+                    <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Page</th>
+                        <th>Requested At</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {requests.map((req, index) => (
+                        <tr key={index}>
+                            <td>{req.username}</td>
+                            <td>{req.page}</td>
+                            <td>{new Date(req.request_time).toLocaleString()}</td>
+                            <td>
+                                <button onClick={() => handleApprove(req.username, req.page)}>Approve</button>
+                                <button onClick={() => handleReject(req.username, req.page)}>Reject</button>
+                            </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+            )}
+
         </div>
     );
 }

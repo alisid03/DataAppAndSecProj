@@ -9,6 +9,14 @@ var con = mysql.createConnection({
     database: "CS6348_Proj"
 })
 
+con.connect((err) => {
+    if (err) {
+        console.error("MySQL connection error:", err);
+        process.exit(1); // exit the app if connection fails
+    }
+    console.log("MySQL connected successfully.");
+});
+
 db_connection.post('/getUser', async (req, res) => {
     try {
         const result = await getUsers(req);
@@ -37,44 +45,47 @@ db_connection.post('/requestAccess', async (req, res) => {
     }
 });
 
-db_connection.get('/admin/getPendingRequests', async (req, res) => {
-    const query = `
-                SELECT username, page, request_time
-                 FROM requests
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM granted
-                    WHERE granted.username = requests.username
-                    AND granted.page = requests.page
-                    )
-                ORDER BY requested_at DESC
-  `;
-
-    con.query(query, (err, results) => {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: 'Failed to get pending requests' });
-        }
-        res.json(results);
-    });
+db_connection.get('/getPendingRequests', async (req, res) => {
+    try {
+        const result = await getRequests(req);
+        console.log(result);
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
 });
 
 async function getUsers(request) {
     return new Promise((resolve, reject) => {
-        con.connect(function (err) {
+        console.log(request.body);
+        con.query("SELECT * FROM user WHERE username = ?", [request.body.username], function (err, result, fields) {
             if (err) {
                 return reject(err);
             }
-            console.log(request.body);
-            con.query("SELECT * FROM user WHERE username = ?", [request.body.username], function (err, result, fields) {
-                if (err) {
-                    return reject(err);
-                }
-                console.log(result);
-                resolve(result[0]); // Resolve the promise with the result
-            });
+            console.log(result);
+            resolve(result[0]); // Resolve the promise with the result
+            }
+        );
+    });
+}
+
+async function getRequests(request) {
+    return new Promise((resolve, reject) => {
+        console.log(request.body);
+        con.query("SELECT * FROM requests", function (err, rows) {
+            if (err) {
+                return reject(err);
+            }
+            console.log(rows);
+            resolve(rows); // Resolve the promise with the result
         });
     });
 }
+
+
+
+
 
 async function requestAccess(request) {
     return new Promise((resolve, reject) => {
