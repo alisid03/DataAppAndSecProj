@@ -26,6 +26,100 @@ db_connection.post('/getUser', async (req, res) => {
     }
 });
 
+async function getData(tableName) {
+    return new Promise((resolve, reject) => {
+        con.query(`SELECT * FROM ${tableName}`, function (err, result) {
+            if (err) {
+                return reject(err);
+            }
+            resolve(result);
+        });
+    });
+}
+
+db_connection.get('/getCategories', async (req, res) => {
+    try {
+        const result = await getData('Categories');
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Get Customers
+db_connection.get('/getCustomers', async (req, res) => {
+    try {
+        const result = await getData('Customers');
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+db_connection.get('/getOrderDetails', async (req, res) => {
+    try {
+        const result = await getData('OrderDetails');
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+db_connection.get('/getOrders', async (req, res) => {
+    try {
+        const result = await getData('Orders');
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+db_connection.get('/getPayments', async (req, res) => {
+    try {
+        const result = await getData('Payments');
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+db_connection.get('/getProductCategories', async (req, res) => {
+    try {
+        const result = await getData('ProductCategories');
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+db_connection.get('/getProducts', async (req, res) => {
+    try {
+        const result = await getData('Products');
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+db_connection.get('/getReviews', async (req, res) => {
+    try {
+        const result = await getData('Reviews');
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 async function getUsers(request) {
     return new Promise((resolve, reject) => {
         con.connect(function (err) {

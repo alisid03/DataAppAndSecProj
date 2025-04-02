@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const [allowedButtons, setAllowedButtons] = useState([]);
+
+  const navigate = useNavigate()
 
   // Fetch allowed buttons from sessionStorage on component mount
   useEffect(() => {
@@ -14,6 +17,9 @@ const Home = () => {
   const handleButtonClick = (buttonNumber) => {
     if (allowedButtons.includes(buttonNumber)) {
       alert(`ACCESS GRANTED: Button ${buttonNumber}`);
+      if(buttonNumber === 1) {
+        navigate('/getReviews')
+      }
     } else {
       alert(`ACCESS DENIED: You do not have access to Button ${buttonNumber}`);
     }
