@@ -1,33 +1,37 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-
+const rng = require('random-number-csprng');
 const app = express();
-const PORT = 5000;
+// const bodyParser = require('body-parser');
+// const cors = require('cors');
 
-app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
+// app.use(bodyParser.json());
+// app.use(cors());
 
-app.post('/send-email', (req, res) => {
-  const { email } = req.body;
+app.post('/sendEmail', async (req, res) => {
+  const email = req.body.username;
+  const token = await getToken();
+  console.log(token);
 
-  // create transporter with your email service and credentials
+  // create transporter with email service and credentials
   const transporter = nodemailer.createTransport({
-    service: 'gmail', // or use another SMTP provider
+    service: 'gmail', // SMTP provider
     auth: {
       user: 'testaccm24@gmail.com',
       pass: 'orym muov mine aoxu'
     }
   });
 
+  // set mail options
   const mailOptions = {
     from: 'testaccm24@gmail.com',
     to: email,
     subject: 'MFA Verification',
-    text: 'This is your multi-factor authentication test email!'
+    text: `This is your multi-factor authentication test email! Token generated: ${token}`
   };
 
+  // send email
   transporter.sendMail(mailOptions, function(error, info){
     if (error) {
       console.log(error);
@@ -39,6 +43,16 @@ app.post('/send-email', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// securely generate random 6-digit code
+function getToken() {
+  return new Promise ((resolve, reject) => {
+    try {
+      resolve(rng(111111, 999999), 200);
+    } catch(error) {
+      console.log(error);
+      reject(error);
+    }
+  });
+}
+
+module.exports = app;

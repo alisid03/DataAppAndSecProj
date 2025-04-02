@@ -4,13 +4,16 @@
   "description": "The server application for the data and application security project",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --openssl-legacy-provider ./node_modules/react-scripts/scripts/start.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "mysql2": "^3.12.0"
+    "mysql2": "^3.12.0",
+    "nodemailer": "^6.10.0",
+    "random-number-csprng": "^1.0.2"
   }
 }
