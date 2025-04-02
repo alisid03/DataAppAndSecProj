@@ -18,7 +18,7 @@ function AdminPage() {
     }, []);
 
     const handleApprove = async (username, page) => {
-        await fetch('/approveAccess', {
+        await fetch('http://localhost:8080/approveAccess', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, page })
@@ -27,7 +27,7 @@ function AdminPage() {
     };
 
     const handleReject = async (username, page) => {
-        await fetch('/rejectAccess', {
+        await fetch('http://localhost:8080/rejectAccess', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, page })

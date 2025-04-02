@@ -47,9 +47,11 @@ export default function TestLoginPage() {
         const access = responseJson.accessTables;
         if(responseJson.status == ACCEPTED && !isAdmin) {
             sessionStorage.setItem('access', access);
+            sessionStorage.setItem('username', responseJson.username);
             navigate('/home')
         }
         else if(responseJson.status == ACCEPTED && isAdmin) {
+            sessionStorage.setItem('username', responseJson.username);
             navigate('/admin')
         }
         else {

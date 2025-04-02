@@ -35,13 +35,43 @@ db_connection.post('/getUser', async (req, res) => {
 });
 
 db_connection.post('/requestAccess', async (req, res) => {
+    const {username, page} = req.body;
     try {
-        const result = await requestAccess(req);
-        console.log(result);
-        res.json(result);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        // Check if request already exists
+        const existing = await new Promise((resolve, reject) => {
+            con.query(
+                "SELECT * FROM requests WHERE username = ? AND page = ?",
+                [username, page],
+                (err, result) => {
+                    if (err) return reject(err);
+                    resolve(result);
+                }
+            );
+        });
+
+        if (existing.length > 0) {
+            // request already exists
+            return res.status(200).json({ status: "EXISTS", message: "Request already exists" });
+        }
+        else {
+            // Step 2: Insert new request
+            const insert = await new Promise((resolve, reject) => {
+                con.query(
+                    "INSERT INTO requests (username, page, request_time) VALUES (?, ?, NOW())",
+                    [username, page],
+                    (err, result) => {
+                        if (err) return reject(err);
+                        resolve(result);
+                    }
+                );
+            });
+        }
+
+        return res.status(200).json({ status: "OK", message: "Request submitted successfully" });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ status: "ERROR", message: "Something went wrong" });
     }
 });
 
@@ -84,28 +114,6 @@ async function getRequests(request) {
 }
 
 
-
-
-
-async function requestAccess(request) {
-    return new Promise((resolve, reject) => {
-        con.connect(function (err) {
-            if (err) {
-                return reject(err);
-            }
-            console.log(request.body);
-
-            // if its an array of access numbers, need to add all of them
-            con.query("INSERT INTO requests (username, page, request_time) VALUES (?,?,NOW()) ", [request.body.username, request.body.page], function (err, result, fields) {
-                if (err) {
-                    return reject(err);
-                }
-                console.log(result);
-                resolve(result[0]); // Resolve the promise with the result
-            });
-        });
-    });
-}
 
 
 

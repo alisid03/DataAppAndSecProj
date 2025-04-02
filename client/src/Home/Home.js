@@ -20,7 +20,26 @@ const Home = () => {
   };
 
   // when user clicks "request access" button, add userID,
-  const handleButtonClick2 = () => {
+  const handleRequest = async() => {
+    const username = sessionStorage.getItem("username");
+    const page = 2;
+
+    if (username) {
+      const res = await fetch('http://localhost:8080/requestAccess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({username, page})
+      });
+      const data = await res.json();
+
+      if (data.status === "EXISTS") {
+        alert("Request already exists");
+      } else if (data.status === "OK") {
+        alert("Request submitted successfully");
+      } else {
+        alert("Something went wrong");
+      }
+    }
 
   }
 
@@ -42,7 +61,7 @@ const Home = () => {
         ))}
       </div>
       <div style={styles.buttonContainer}>
-        <button>Request Access</button>
+        <button onClick={handleRequest}>Request Access</button>
       </div>
     </div>
   );
