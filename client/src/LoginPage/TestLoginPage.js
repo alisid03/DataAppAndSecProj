@@ -46,6 +46,7 @@ export default function TestLoginPage() {
         const access = responseJson.accessTables;
         if(responseJson.status == ACCEPTED){
             sessionStorage.setItem('access',access);
+            sessionStorage.setItem('username', data.get('username')); // Store username
             navigate('/home')
         }
         else {
@@ -107,6 +108,13 @@ export default function TestLoginPage() {
             >
               Sign In
             </Button>
+            <Grid container>
+              <Grid item>
+                <Link href="/signup" variant="body2">
+                  {"Don't have an account? Sign Up"}
+                </Link>
+              </Grid>
+            </Grid>
           </Box>
         </Box>
         <Box

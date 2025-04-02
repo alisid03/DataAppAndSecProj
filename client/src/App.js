@@ -3,6 +3,8 @@ import './App.css';
 import TestLoginPage from './LoginPage/TestLoginPage';
 import Home from './Home/Home';
 import ReviewTables from './DataViews/ReviewsTables'
+import SignupPage from './SignupPage'; // Import SignupPage
+import RequestPage from './RequestPage'; // Import RequestPage
 import { BrowserRouter as Router, Routes, Route, HashRouter } from 'react-router-dom';
 
 //data will be the string we send from our server
@@ -21,6 +23,8 @@ function App() {
         <Route exact path='/' element={<TestLoginPage/>}></Route>
         <Route path='/home' element={<Home/>}></Route>
         <Route path='/getReviews' element={<ReviewTables/>}></Route>
+        <Route path='/signup' element={<SignupPage />} /> 
+        <Route path='/request' element={<RequestPage />} />
       </Routes>
     </Router>
   );
