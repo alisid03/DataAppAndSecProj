@@ -47,6 +47,7 @@ export default function TestLoginPage() {
         if(responseJson.status == ACCEPTED){
             // TODO: add popup window or new page element to request token and compare against database for access
             // sessionStorage.setItem('access',access);
+            sessionStorage.setItem('username', data.get('username')); // Store username
             navigate('/home')
         }
         else {
@@ -108,6 +109,13 @@ export default function TestLoginPage() {
             >
               Sign In
             </Button>
+            <Grid container>
+              <Grid item>
+                <Link href="/signup" variant="body2">
+                  {"Don't have an account? Sign Up"}
+                </Link>
+              </Grid>
+            </Grid>
           </Box>
         </Box>
         <Box
