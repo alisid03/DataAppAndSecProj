@@ -28,7 +28,7 @@ app.post('/sendEmail', async (req, res) => {
     from: 'testaccm24@gmail.com',
     to: email,
     subject: 'MFA Verification',
-    text: `This is your multi-factor authentication test email! Token generated: ${token}`
+    text: `This is a multi-factor authentication email to access the database using G-COD! Token generated: ${token}`
   };
 
   // send email
@@ -38,7 +38,7 @@ app.post('/sendEmail', async (req, res) => {
       res.status(500).send({ success: false, error });
     } else {
       console.log('Email sent: ' + info.response);
-      res.send({ success: true, message: 'Email sent' });
+      res.send({ success: true, message: 'Email sent', token: token });
     }
   });
 });
