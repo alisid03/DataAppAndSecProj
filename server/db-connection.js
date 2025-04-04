@@ -306,13 +306,18 @@ async function requestAccess(sanitizedUsername, featureName) {
       [featureName],
       function (idErr, idResults) {
         if (idErr) {
-          console.error("Database error looking up tableID in requestAccess:", idErr);
+          console.error(
+            "Database error looking up tableID in requestAccess:",
+            idErr
+          );
           // Provide a more generic error to the client
           return reject(new Error("Database error processing request."));
         }
         if (idResults.length === 0) {
           // The requested feature name doesn't exist in TableIDs
-          console.error(`Feature name "${featureName}" not found in TableIDs during request.`);
+          console.error(
+            `Feature name "${featureName}" not found in TableIDs during request.`
+          );
           return reject(new Error(`Invalid feature specified: ${featureName}`));
         }
 
@@ -324,16 +329,25 @@ async function requestAccess(sanitizedUsername, featureName) {
           [sanitizedUsername, tableId], // Use the numeric tableId
           function (insertErr, insertResult) {
             if (insertErr) {
-              console.error("Database error inserting access request:", insertErr);
+              console.error(
+                "Database error inserting access request:",
+                insertErr
+              );
               // Handle potential duplicate entry errors specifically if needed
-              if (insertErr.code === 'ER_DUP_ENTRY') {
-                 return reject(new Error("You have already requested access for this feature."));
+              if (insertErr.code === "ER_DUP_ENTRY") {
+                return reject(
+                  new Error(
+                    "You have already requested access for this feature."
+                  )
+                );
               }
               // Generic error for other insertion issues
               return reject(new Error("Database error submitting request."));
             }
             // Success
-            console.log(`Access request submitted for user ${sanitizedUsername}, feature ID ${tableId} (${featureName})`);
+            console.log(
+              `Access request submitted for user ${sanitizedUsername}, feature ID ${tableId} (${featureName})`
+            );
             resolve(insertResult);
           }
         );
