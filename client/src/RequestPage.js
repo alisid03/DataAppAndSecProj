@@ -19,22 +19,25 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-const allFeatures = [
-  { id: "1", name: "Reviews" },
-  { id: "2", name: "Categories" },
-  { id: "3", name: "Customers" },
-  { id: "4", name: "Order Details" },
-  { id: "5", name: "Orders" },
-  { id: "6", name: "Payments" },
-  { id: "7", name: "Product Categories" },
-  { id: "8", name: "Products" },
+// Define features using actual table names, consistent with Home.js and backend
+const allPossibleFeatures = [
+  { name: "Reviews" },
+  { name: "Categories" },
+  { name: "Customers" },
+  { name: "OrderDetails" }, // Use actual table name
+  { name: "Orders" },
+  { name: "Payments" },
+  { name: "ProductCategories" }, // Use actual table name
+  { name: "Products" },
+  // Add other requestable features/tables if necessary
 ];
+
 
 export default function RequestPage() {
   const navigate = useNavigate();
-  const [feature, setFeature] = useState("");
+  const [selectedFeature, setSelectedFeature] = useState(""); // Renamed state for clarity
   const [username, setUsername] = useState("");
-  const [allowedFeatures, setAllowedFeatures] = useState([]);
+  const [allowedFeatures, setAllowedFeatures] = useState([]); // Stores table names user already has
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -80,8 +83,9 @@ export default function RequestPage() {
           throw new Error("Failed to fetch allowed features");
         }
         const featuresData = await featuresResponse.json();
+        // Ensure comparison is case-insensitive later by storing consistently or comparing case-insensitively
         setAllowedFeatures(
-          Array.isArray(featuresData) ? featuresData.map(String) : []
+          Array.isArray(featuresData) ? featuresData.map(name => name.toLowerCase()) : [] // Store lowercase for easier comparison
         );
       } catch (err) {
         console.error("Error during verification or feature fetch:", err);
@@ -113,17 +117,18 @@ export default function RequestPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!feature) {
+    if (!selectedFeature) { // Use renamed state
       showSnackbar("Please select a feature to request.", "warning");
       return;
     }
     setLoading(true);
 
     try {
+      // Send the actual feature name (table name) to the backend
       const response = await fetch("http://localhost:8080/requestAccess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, feature }),
+        body: JSON.stringify({ username: username, feature: selectedFeature }), // Send selectedFeature (table name)
       });
 
       if (!response.ok) {
@@ -162,8 +167,10 @@ export default function RequestPage() {
     }
   };
 
-  const availableFeatures = allFeatures.filter(
-    (f) => !allowedFeatures.includes(f.id)
+  // Filter all possible features to get only those the user *doesn't* have
+  // Perform case-insensitive comparison
+  const availableFeaturesToRequest = allPossibleFeatures.filter(
+    (feature) => !allowedFeatures.includes(feature.name.toLowerCase())
   );
 
   return (
@@ -187,9 +194,9 @@ export default function RequestPage() {
 
         {fetchLoading ? (
           <CircularProgress sx={{ my: 3 }} />
-        ) : availableFeatures.length === 0 ? (
+        ) : availableFeaturesToRequest.length === 0 ? ( // Use corrected filter result
           <Typography sx={{ mt: 2, textAlign: "center" }}>
-            You already have access to all available features.
+            You already have access to all available features, or no features are available to request.
           </Typography>
         ) : (
           <Box
@@ -204,15 +211,17 @@ export default function RequestPage() {
                 labelId="feature-label"
                 id="feature"
                 name="feature"
-                value={feature}
+                value={selectedFeature} // Use renamed state
                 label="Select Feature"
-                onChange={(e) => setFeature(e.target.value)}
+                onChange={(e) => setSelectedFeature(e.target.value)} // Use renamed state setter
                 required
               >
-                {availableFeatures.map((f) => (
-                  <MenuItem key={f.id} value={f.id}>
-                    {f.name}
-                  </MenuItem> // Use descriptive name
+                {/* Map over the correctly filtered features */}
+                {availableFeaturesToRequest.map((feature) => (
+                  // Use the feature name (table name) as both key and value
+                  <MenuItem key={feature.name} value={feature.name}>
+                    {feature.name}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>

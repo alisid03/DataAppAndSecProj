@@ -297,17 +297,46 @@ db_connection.post("/requestAccess", async (req, res) => {
   }
 });
 
-async function requestAccess(sanitizedUsername, sanitizedFeature) {
+async function requestAccess(sanitizedUsername, featureName) {
+  // Handles submitting an access request for a feature (table)
   return new Promise((resolve, reject) => {
+    // Step 1: Find the numeric tableID corresponding to the featureName
     con.query(
-      "INSERT INTO requests (username, page, request_time) VALUES (?, ?, NOW())",
-      [sanitizedUsername, sanitizedFeature],
-      function (err, result, fields) {
-        if (err) {
-          console.error("Database error in requestAccess:", err);
-          return reject(err);
+      "SELECT tableID FROM TableIDs WHERE tableName = ?",
+      [featureName],
+      function (idErr, idResults) {
+        if (idErr) {
+          console.error("Database error looking up tableID in requestAccess:", idErr);
+          // Provide a more generic error to the client
+          return reject(new Error("Database error processing request."));
         }
-        resolve(result);
+        if (idResults.length === 0) {
+          // The requested feature name doesn't exist in TableIDs
+          console.error(`Feature name "${featureName}" not found in TableIDs during request.`);
+          return reject(new Error(`Invalid feature specified: ${featureName}`));
+        }
+
+        const tableId = idResults[0].tableID; // Get the numeric ID
+
+        // Step 2: Insert the request using the numeric tableID in the 'page' column
+        con.query(
+          "INSERT INTO Requests (username, page, request_time) VALUES (?, ?, NOW())", // Corrected table name capitalization
+          [sanitizedUsername, tableId], // Use the numeric tableId
+          function (insertErr, insertResult) {
+            if (insertErr) {
+              console.error("Database error inserting access request:", insertErr);
+              // Handle potential duplicate entry errors specifically if needed
+              if (insertErr.code === 'ER_DUP_ENTRY') {
+                 return reject(new Error("You have already requested access for this feature."));
+              }
+              // Generic error for other insertion issues
+              return reject(new Error("Database error submitting request."));
+            }
+            // Success
+            console.log(`Access request submitted for user ${sanitizedUsername}, feature ID ${tableId} (${featureName})`);
+            resolve(insertResult);
+          }
+        );
       }
     );
   });
