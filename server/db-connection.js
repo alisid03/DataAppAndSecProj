@@ -128,7 +128,7 @@ async function getUsers(request) {
             }
             console.log(request.body);
             
-            con.query("SELECT * FROM user WHERE username = ?", [request.body.username], function (err, result, fields) {
+            con.query("SELECT * FROM User WHERE username = ?", [request.body.username], function (err, result, fields) {
                 if (err) {
                     return reject(err);
                 }

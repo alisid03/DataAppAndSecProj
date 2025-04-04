@@ -43,9 +43,9 @@ export default function TestLoginPage() {
             }),
         });
         const responseJson = await response.json();
-        const access = responseJson.accessTables;
+        // const access = responseJson.accessTables;
         if(responseJson.status == ACCEPTED){
-            sessionStorage.setItem('access',access);
+            // sessionStorage.setItem('access',access);
             navigate('/home')
         }
         else {

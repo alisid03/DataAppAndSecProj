@@ -8,7 +8,8 @@ const Home = () => {
 
   // Fetch allowed buttons from sessionStorage on component mount
   useEffect(() => {
-    const accessData = sessionStorage.getItem("access");
+    // TODO: change to new access method
+    const accessData = "[1, 2, 3, 4]";
     if (accessData) {
       setAllowedButtons(JSON.parse(accessData)); // Convert from string to array
     }
