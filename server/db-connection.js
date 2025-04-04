@@ -18,28 +18,24 @@ const ALLOWED_TABLE_NAMES = [
   "ProductCategories",
   "Products",
   "Reviews",
-  "accessTables",
-  "granted",
-  "logTable",
-  "requests",
-  "user",
+  "AccessTables",
+  "LogTable",
+  "LoginToken",
+  "TableIDs",
 ];
 
-//Modified getData function with Whitelisting
+//getData function with Whitelisting
 async function getData(tableName) {
   return new Promise((resolve, reject) => {
-    
     if (!ALLOWED_TABLE_NAMES.includes(tableName)) {
-      
       console.error(`Attempt to query disallowed table: ${tableName}`);
-      
+
       return reject(new Error("Invalid table name specified."));
     }
 
-    
     con.query(`SELECT * FROM ${tableName}`, function (err, result) {
       if (err) {
-        console.error(`Error querying table ${tableName}:`, err); 
+        console.error(`Error querying table ${tableName}:`, err);
         return reject(err);
       }
       resolve(result);
@@ -47,13 +43,11 @@ async function getData(tableName) {
   });
 }
 
-
 db_connection.get("/getCategories", async (req, res) => {
   try {
-    const result = await getData("Categories"); 
+    const result = await getData("Categories");
     res.json(result);
   } catch (error) {
-   
     console.error("Error in /getCategories:", error);
     res.status(500).json({ error: error.message || "Internal Server Error" });
   }
@@ -61,7 +55,7 @@ db_connection.get("/getCategories", async (req, res) => {
 
 db_connection.get("/getCustomers", async (req, res) => {
   try {
-    const result = await getData("Customers"); 
+    const result = await getData("Customers");
     res.json(result);
   } catch (error) {
     console.error("Error in /getCustomers:", error);
@@ -71,7 +65,7 @@ db_connection.get("/getCustomers", async (req, res) => {
 
 db_connection.get("/getOrderDetails", async (req, res) => {
   try {
-    const result = await getData("OrderDetails"); 
+    const result = await getData("OrderDetails");
     res.json(result);
   } catch (error) {
     console.error("Error in /getOrderDetails:", error);
@@ -81,7 +75,7 @@ db_connection.get("/getOrderDetails", async (req, res) => {
 
 db_connection.get("/getOrders", async (req, res) => {
   try {
-    const result = await getData("Orders"); 
+    const result = await getData("Orders");
     res.json(result);
   } catch (error) {
     console.error("Error in /getOrders:", error);
@@ -91,7 +85,7 @@ db_connection.get("/getOrders", async (req, res) => {
 
 db_connection.get("/getPayments", async (req, res) => {
   try {
-    const result = await getData("Payments"); 
+    const result = await getData("Payments");
     res.json(result);
   } catch (error) {
     console.error("Error in /getPayments:", error);
@@ -101,7 +95,7 @@ db_connection.get("/getPayments", async (req, res) => {
 
 db_connection.get("/getProductCategories", async (req, res) => {
   try {
-    const result = await getData("ProductCategories"); 
+    const result = await getData("ProductCategories");
     res.json(result);
   } catch (error) {
     console.error("Error in /getProductCategories:", error);
@@ -111,7 +105,7 @@ db_connection.get("/getProductCategories", async (req, res) => {
 
 db_connection.get("/getProducts", async (req, res) => {
   try {
-    const result = await getData("Products"); 
+    const result = await getData("Products");
     res.json(result);
   } catch (error) {
     console.error("Error in /getProducts:", error);
@@ -121,7 +115,7 @@ db_connection.get("/getProducts", async (req, res) => {
 
 db_connection.get("/getReviews", async (req, res) => {
   try {
-    const result = await getData("Reviews"); 
+    const result = await getData("Reviews");
     res.json(result);
   } catch (error) {
     console.error("Error in /getReviews:", error);
@@ -129,24 +123,58 @@ db_connection.get("/getReviews", async (req, res) => {
   }
 });
 
+db_connection.get("/getAccessTables", async (req, res) => {
+  try {
+    const result = await getData("AccessTables");
+    res.json(result);
+  } catch (error) {
+    console.error("Error in /getAccessTables:", error);
+    res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+});
 
+db_connection.get("/getLogTable", async (req, res) => {
+  try {
+    const result = await getData("LogTable");
+    res.json(result);
+  } catch (error) {
+    console.error("Error in /getLogTable:", error);
+    res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+});
+
+db_connection.get("/getLoginToken", async (req, res) => {
+  try {
+    const result = await getData("LoginToken");
+    res.json(result);
+  } catch (error) {
+    console.error("Error in /getLoginToken:", error);
+    res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+});
+
+db_connection.get("/getTableIDs", async (req, res) => {
+  try {
+    const result = await getData("TableIDs");
+    res.json(result);
+  } catch (error) {
+    console.error("Error in /getTableIDs:", error);
+    res.status(500).json({ error: error.message || "Internal Server Error" });
+  }
+});
 
 db_connection.post("/getUser", async (req, res) => {
   try {
-   
-    const userResult = await getUsers(req); 
+    const userResult = await getUsers(req);
 
-    let responseData = { status: "REJECTED" }; 
+    let responseData = { status: "REJECTED" };
 
     if (userResult && userResult.password == req.body.password) {
-      
       responseData = { ...userResult, status: "ACCEPTED" };
-      delete responseData.password; 
+      delete responseData.password;
     } else if (userResult) {
-      
       responseData.error = "Incorrect password";
     } else {
-      
       responseData.error = "User not found";
     }
 
@@ -154,75 +182,50 @@ db_connection.post("/getUser", async (req, res) => {
     res.json(responseData);
   } catch (error) {
     console.error("Request Access error:", error);
-    
-    res
-      .status(500)
-      .json({
-        status: "REJECTED",
-        error: error.message || "Internal Server Error",
-      });
+
+    res.status(500).json({
+      status: "REJECTED",
+      error: error.message || "Internal Server Error",
+    });
   }
 });
 
 async function getUsers(request) {
-  
   return new Promise((resolve, reject) => {
     const username = request.body.username
       ? request.body.username.trim()
       : null;
-    
 
     if (!username) {
-      
       return reject(new Error("Username is required"));
     }
 
     console.log("Sanitized username for getUser:", username);
 
-    
     con.query(
-      "SELECT * FROM user WHERE username = ?",
+      "SELECT * FROM User WHERE username = ?",
       [username],
       function (err, result, fields) {
         if (err) {
           console.error("Database error in getUsers:", err);
-          return reject(err); 
+          return reject(err);
         }
-        
+
         if (result.length > 0) {
-          const user = { ...result[0] }; 
-          if (user) {
-            try {
-              
-              if (user.accessTables && typeof user.accessTables === "string") {
-                user.accessTables = JSON.parse(user.accessTables);
-              } else if (!user.accessTables) {
-                user.accessTables = []; 
-              }
-              
-            } catch (e) {
-              console.error(
-                `Error parsing accessTables for user ${username}:`,
-                e
-              );
-              user.accessTables = []; 
-            }
-            
-            console.log(`User ${username} found.`);
-            resolve(user); 
-          } else {
-            console.log(`User ${username} query returned empty row.`);
-            resolve(null); 
-          }
+          // User found, resolve with the user data (all columns fetched by SELECT *)
+
+          const user = { ...result[0] };
+          console.log(`User ${username} found.`);
+          resolve(user);
         } else {
+          // User not found
           console.log(`User ${username} not found in database.`);
-          resolve(null); 
+          resolve(null);
         }
       }
     );
   });
 }
-
 
 db_connection.post("/createUser", async (req, res) => {
   try {
@@ -238,13 +241,12 @@ db_connection.post("/createUser", async (req, res) => {
       return res.status(400).json({ error: "Username cannot be empty" });
     }
 
-    const result = await createUser(username, password); 
-    res.json({ status: "ACCEPTED", message: "User created" }); 
+    const result = await createUser(username, password);
+    res.json({ status: "ACCEPTED", message: "User created" });
   } catch (error) {
     console.error("CreateUser error:", error);
     if (error.message === "Username already exists") {
-      
-      res.status(409).json({ error: "Username already exists" }); 
+      res.status(409).json({ error: "Username already exists" });
     } else {
       res.status(500).json({ error: "Failed to create user" });
     }
@@ -252,21 +254,19 @@ db_connection.post("/createUser", async (req, res) => {
 });
 
 async function createUser(sanitizedUsername, password) {
-  
   return new Promise((resolve, reject) => {
     con.query(
-      "INSERT INTO user (username, password) VALUES (?, ?)",
+      "INSERT INTO User (username, password) VALUES (?, ?)",
       [sanitizedUsername, password],
       function (err, result, fields) {
         if (err) {
           console.error("Database error in createUser:", err);
           if (err.code === "ER_DUP_ENTRY") {
-            
             return reject(new Error("Username already exists"));
           }
-          return reject(err); 
+          return reject(err);
         }
-        
+
         resolve(result);
       }
     );
@@ -289,7 +289,7 @@ db_connection.post("/requestAccess", async (req, res) => {
         .json({ error: "Username and feature cannot be empty" });
     }
 
-    const result = await requestAccess(username, feature); // requestAccess uses parameterization
+    const result = await requestAccess(username, feature);
     res.json({ status: "ACCEPTED", message: "Access request submitted" });
   } catch (error) {
     console.error("RequestAccess endpoint error:", error);
@@ -298,7 +298,6 @@ db_connection.post("/requestAccess", async (req, res) => {
 });
 
 async function requestAccess(sanitizedUsername, sanitizedFeature) {
-  
   return new Promise((resolve, reject) => {
     con.query(
       "INSERT INTO requests (username, page, request_time) VALUES (?, ?, NOW())",
@@ -308,7 +307,7 @@ async function requestAccess(sanitizedUsername, sanitizedFeature) {
           console.error("Database error in requestAccess:", err);
           return reject(err);
         }
-        resolve(result); 
+        resolve(result);
       }
     );
   });
@@ -320,8 +319,8 @@ db_connection.get("/allowedFeatures/:username", async (req, res) => {
     if (!username) {
       return res.status(400).json({ error: "Username parameter is required" });
     }
-    const result = await getAllowedFeatures(username); 
-    res.json(result); 
+    const result = await getAllowedFeatures(username);
+    res.json(result);
   } catch (error) {
     console.error("AllowedFeatures endpoint error:", error);
     res.status(500).json({ error: "Failed to get allowed features" });
@@ -329,45 +328,27 @@ db_connection.get("/allowedFeatures/:username", async (req, res) => {
 });
 
 async function getAllowedFeatures(sanitizedUsername) {
-  
+  // Fetches the names of tables a user has access to based on AccessTables and TableIDs
   return new Promise((resolve, reject) => {
-    con.query(
-      "SELECT accessTables FROM user WHERE username = ?",
-      [sanitizedUsername],
-      function (err, result, fields) {
-        if (err) {
-          console.error("Database error in getAllowedFeatures:", err);
-          return reject(err);
-        }
+    const query = `
+      SELECT ti.tableName 
+      FROM AccessTables at
+      JOIN TableIDs ti ON at.tableID = ti.tableID
+      WHERE at.username = ? 
+      -- Optional: Add check for expirationTime > NOW() if needed
+      -- AND at.expirationTime > NOW() 
+    `;
 
-        if (result.length > 0) {
-          const user = result[0];
-          let features = []; 
-          try {
-            
-            if (user.accessTables && typeof user.accessTables === "string") {
-              features = JSON.parse(user.accessTables);
-              
-              if (!Array.isArray(features)) {
-                console.warn(
-                  `Parsed accessTables for ${sanitizedUsername} was not an array, resetting.`
-                );
-                features = [];
-              }
-            }
-          } catch (e) {
-            console.error(
-              `Error parsing accessTables JSON for ${sanitizedUsername}:`,
-              e
-            );
-            
-          }
-          resolve(features);
-        } else {
-          resolve([]); 
-        }
+    con.query(query, [sanitizedUsername], function (err, results) {
+      if (err) {
+        console.error("Database error in getAllowedFeatures:", err);
+        return reject(err);
       }
-    );
+
+      // Map the result rows to an array of table names
+      const allowedTableNames = results.map((row) => row.tableName);
+      resolve(allowedTableNames);
+    });
   });
 }
 
@@ -378,7 +359,7 @@ db_connection.get("/verifyUser/:username", async (req, res) => {
       return res.status(400).json({ error: "Username parameter is required" });
     }
 
-    const exists = await checkUserExists(username); 
+    const exists = await checkUserExists(username);
     res.json({ exists: exists });
   } catch (error) {
     console.error("VerifyUser endpoint error:", error);
@@ -387,10 +368,9 @@ db_connection.get("/verifyUser/:username", async (req, res) => {
 });
 
 async function checkUserExists(sanitizedUsername) {
- 
   return new Promise((resolve, reject) => {
     con.query(
-      "SELECT 1 FROM user WHERE username = ? LIMIT 1",
+      "SELECT 1 FROM User WHERE username = ? LIMIT 1",
       [sanitizedUsername],
       function (err, result, fields) {
         if (err) {

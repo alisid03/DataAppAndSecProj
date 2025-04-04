@@ -10,76 +10,52 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 const Home = () => {
   const navigate = useNavigate();
-  const [allowedButtons, setAllowedButtons] = useState([]);
+  const [allowedFeatures, setAllowedFeatures] = useState([]);
   const [username, setUsername] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("info");
 
-  // Fetch allowed buttons from sessionStorage on component mount
+  // Read username and allowed features from sessionStorage on component mount
   useEffect(() => {
-    setLoading(true);
     setError(null);
     const storedUsername = sessionStorage.getItem("username");
+    const storedAccessJson = sessionStorage.getItem("access");
 
-    const verifyAndLoadFeatures = async () => {
-      if (!storedUsername) {
-        setError("User not logged in. Redirecting to login...");
-        setLoading(false);
-        setTimeout(() => navigate("/"), 1500);
-        return;
-      }
+    if (!storedUsername || !storedAccessJson) {
+      setError(
+        "User not logged in or permissions missing. Redirecting to login..."
+      );
+      // Clear potentially partial session data
+      sessionStorage.removeItem("username");
+      sessionStorage.removeItem("access");
+      setTimeout(() => navigate("/"), 1500);
+      return;
+    }
 
-      try {
-        // Step 1: Verify user exists in DB
-        const verifyResponse = await fetch(
-          `http://localhost:8080/verifyUser/${storedUsername}`
-        );
-        if (!verifyResponse.ok) {
-          throw new Error("Verification request failed");
-        }
-        const verifyData = await verifyResponse.json();
+    setUsername(storedUsername);
 
-        if (!verifyData.exists) {
-          // User in sessionStorage doesn't exist in DB (or session is invalid)
-          sessionStorage.removeItem("username"); // Clear invalid session storage
-          setError("Invalid session. Redirecting to login...");
-          setLoading(false);
-          setTimeout(() => navigate("/"), 1500);
-          return;
-        }
-
-        // Step 2: User verified, set username and fetch features
-        setUsername(storedUsername);
-        const featuresResponse = await fetch(
-          `http://localhost:8080/allowedFeatures/${storedUsername}`
-        );
-        if (!featuresResponse.ok) {
-          throw new Error("Failed to fetch features");
-        }
-        const featuresData = await featuresResponse.json();
-        console.log("Fetched features data:", featuresData); // Log fetched data
-        const buttons = Array.isArray(featuresData)
-          ? featuresData.map(String)
-          : [];
-        console.log("Setting allowedButtons state to:", buttons); // Log state being set
-        setAllowedButtons(buttons);
-      } catch (err) {
-        console.error("Error during verification or feature fetch:", err);
-
-        setError(
-          err.message || "An error occurred. Please try logging in again."
-        );
-
+    try {
+      const parsedFeatures = JSON.parse(storedAccessJson);
+      if (Array.isArray(parsedFeatures)) {
+        setAllowedFeatures(parsedFeatures);
+        console.log("Loaded features from session:", parsedFeatures);
+      } else {
+        console.error("Stored access data is not an array:", parsedFeatures);
+        setError("Invalid permission data format. Please log in again.");
         sessionStorage.removeItem("username");
-      } finally {
-        setLoading(false);
+        sessionStorage.removeItem("access");
+        setTimeout(() => navigate("/"), 1500);
       }
-    };
-
-    verifyAndLoadFeatures();
+    } catch (parseError) {
+      console.error("Error parsing stored access data:", parseError);
+      setError("Failed to read permission data. Please log in again.");
+      sessionStorage.removeItem("username");
+      sessionStorage.removeItem("access");
+      setTimeout(() => navigate("/"), 1500);
+    }
   }, [navigate]);
 
   const handleSnackbarClose = (event, reason) => {
@@ -100,17 +76,24 @@ const Home = () => {
     1: { name: "Reviews", path: "/getReviews" },
     2: { name: "Categories", path: "/getCategories" },
     3: { name: "Customers", path: "/getCustomers" },
-    4: { name: "Order Details", path: "/getOrderDetails" },
+    4: { name: "OrderDetails", path: "/getOrderDetails" },
     5: { name: "Orders", path: "/getOrders" },
     6: { name: "Payments", path: "/getPayments" },
-    7: { name: "Product Categories", path: "/getProductCategories" },
+    7: { name: "ProductCategories", path: "/getProductCategories" },
     8: { name: "Products", path: "/getProducts" },
   };
 
   const handleButtonClick = (buttonNumber) => {
     const feature = featureMap[buttonNumber];
-    // Convert buttonNumber to string for comparison with allowedButtons (which contains strings)
-    if (feature && allowedButtons.includes(buttonNumber.toString())) {
+
+    const isAllowed =
+      feature &&
+      allowedFeatures.some(
+        (allowedName) =>
+          allowedName.toLowerCase() === feature.name.toLowerCase()
+      );
+
+    if (isAllowed) {
       showSnackbar(`Accessing ${feature.name}...`, "success");
       navigate(feature.path);
     } else {
@@ -119,7 +102,7 @@ const Home = () => {
           feature ? feature.name : `Feature ${buttonNumber}`
         }`,
         "error"
-      ); // Use Snackbar
+      );
     }
   };
 
@@ -153,7 +136,11 @@ const Home = () => {
           >
             {Object.entries(featureMap).map(([buttonNumberStr, feature]) => {
               const buttonNumber = parseInt(buttonNumberStr, 10);
-              const isAllowed = allowedButtons.includes(buttonNumberStr);
+              // Perform a case-insensitive check
+              const isAllowed = allowedFeatures.some(
+                (allowedName) =>
+                  allowedName.toLowerCase() === feature.name.toLowerCase()
+              );
               const featureName = feature.name;
               return (
                 <Button
@@ -167,7 +154,7 @@ const Home = () => {
                     cursor: "pointer",
                   }}
                 >
-                  {featureName} {/* Display feature name */}
+                  {featureName}
                 </Button>
               );
             })}
