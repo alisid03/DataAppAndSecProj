@@ -45,6 +45,7 @@ export default function TestLoginPage() {
         const responseJson = await response.json();
         // const access = responseJson.accessTables;
         if(responseJson.status == ACCEPTED){
+            // TODO: add popup window or new page element to request token and compare against database for access
             // sessionStorage.setItem('access',access);
             navigate('/home')
         }
