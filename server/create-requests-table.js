@@ -1,14 +1,10 @@
 const mysql = require('mysql2');
 
 const con = mysql.createConnection({
-    /*host: "cs6348-project.crsmosm2myjt.us-east-2.rds.amazonaws.com",
+    host: "cs6348-project.crsmosm2myjt.us-east-2.rds.amazonaws.com",
     user: "admin",
     password: "AqpZo1I0QOpmcgjJ8FiU",
-    database: "CS6348_Proj"*/
-    host: "localhost",
-    user: "root",
-    password: "root",
-    database: "cs6348"
+    database: "CS6348_Proj"
 });
 
 con.connect(function (err) {
