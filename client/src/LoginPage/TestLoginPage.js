@@ -38,8 +38,28 @@ export default function TestLoginPage() {
           password: data.get("password"),
         }),
       });
-      const loginResponseJson = await response.json();
 
+      /* Admin related page access
+      const responseJson = await response.json();
+        const isAdmin = responseJson.isAdmin;
+        const access = responseJson.accessTables;
+        if(responseJson.status == ACCEPTED && !isAdmin) {
+            sessionStorage.setItem('access', access);
+            sessionStorage.setItem('username', responseJson.username);
+            navigate('/home')
+        }
+        else if(responseJson.status == ACCEPTED && isAdmin) {
+            sessionStorage.setItem('username', responseJson.username);
+            navigate('/admin')
+        }
+        else {
+            alert("Incorrect login");
+
+       */
+
+
+      const loginResponseJson = await response.json();
+      const isAdmin = loginresponseJson.isAdmin;
       if (loginResponseJson.status == ACCEPTED) {
         const username = data.get("username");
         sessionStorage.setItem("username", username);
