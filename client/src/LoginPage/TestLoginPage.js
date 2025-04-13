@@ -59,7 +59,7 @@ export default function TestLoginPage() {
 
 
       const loginResponseJson = await response.json();
-      const isAdmin = loginresponseJson.isAdmin;
+      const isAdmin = loginResponseJson.isAdmin;
       if (loginResponseJson.status == ACCEPTED) {
         const username = data.get("username");
         sessionStorage.setItem("username", username);

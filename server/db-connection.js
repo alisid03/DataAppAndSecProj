@@ -249,46 +249,6 @@ db_connection.post("/getUser", async (req, res) => {
   }
 });
 
-db_connection.post('/requestAccess', async (req, res) => {
-    const {username, page} = req.body;
-    try {
-        // Check if request already exists
-        const existing = await new Promise((resolve, reject) => {
-            con.query(
-                "SELECT * FROM requests WHERE username = ? AND page = ?",
-                [username, page],
-                (err, result) => {
-                    if (err) return reject(err);
-                    resolve(result);
-                }
-            );
-        });
-
-        if (existing.length > 0) {
-            // request already exists
-            return res.status(200).json({ status: "EXISTS", message: "Request already exists" });
-        }
-        else {
-            // Step 2: Insert new request
-            const insert = await new Promise((resolve, reject) => {
-                con.query(
-                    "INSERT INTO requests (username, page, request_time) VALUES (?, ?, NOW())",
-                    [username, page],
-                    (err, result) => {
-                        if (err) return reject(err);
-                        resolve(result);
-                    }
-                );
-            });
-        }
-
-        return res.status(200).json({ status: "OK", message: "Request submitted successfully" });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ status: "ERROR", message: "Something went wrong" });
-    }
-});
 
 db_connection.get('/getPendingRequests', async (req, res) => {
     try {
@@ -304,7 +264,7 @@ db_connection.get('/getPendingRequests', async (req, res) => {
 async function getRequests(request) {
     return new Promise((resolve, reject) => {
         console.log(request.body);
-        con.query("SELECT * FROM requests", function (err, rows) {
+        con.query("SELECT * FROM Requests", function (err, rows) {
             if (err) {
                 return reject(err);
             }
