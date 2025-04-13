@@ -74,8 +74,13 @@ export default function TestLoginPage() {
             );
           }
           const allowedFeatures = await featuresResponse.json();
-          sessionStorage.setItem("access", JSON.stringify(allowedFeatures));
-          navigate("/home");
+          if (isAdmin) {
+            navigate("/admin");
+          }
+          else {
+            sessionStorage.setItem("access", JSON.stringify(allowedFeatures));
+            navigate("/home");
+          }
         } catch (featuresError) {
           console.error("Error fetching allowed features:", featuresError);
           alert(

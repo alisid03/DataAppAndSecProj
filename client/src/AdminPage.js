@@ -18,22 +18,41 @@ function AdminPage() {
     }, []);
 
     const handleApprove = async (username, page) => {
-        await fetch('http://localhost:8080/approveAccess', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, page })
-        });
-    alert(`Approved access for ${username}`);
+        try {
+            const res = await fetch('http://localhost:8080/approveAccess', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, tableID:page})
+            });
+            const data = await res.json();
+            if (data.success) {
+                setRequests((prev) => prev.filter(r => !(r.username === username && r.page === page)));
+            } else {
+                alert("Approval failed");
+            }
+        } catch (err) {
+            console.error('Approval error:', err);
+        }
     };
 
     const handleReject = async (username, page) => {
-        await fetch('http://localhost:8080/rejectAccess', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, page })
-        });
-        alert(`Rejected access for ${username}`);
+        try {
+            const res = await fetch('http://localhost:8080/rejectAccess', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, page})
+            });
+            const data = await res.json();
+            if (data.success) {
+                setRequests((prev) => prev.filter(r => !(r.username === username && r.page === page)));
+            } else {
+                alert("Reject failed");
+            }
+        } catch (err) {
+            console.error('Reject error:', err);
+        }
     };
+
     return (
         <div>
             <h1>Admin Access Requests</h1>
