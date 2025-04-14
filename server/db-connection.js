@@ -33,7 +33,7 @@ async function getData(tableName) {
       return reject(new Error("Invalid table name specified."));
     }
 
-    con.query(`SELECT * FROM ${tableName}`, function (err, result) {
+    con.query('SELECT * FROM ??', [tableName], function (err, result) {
       if (err) {
         console.error(`Error querying table ${tableName}:`, err);
         return reject(err);
