@@ -43,27 +43,30 @@ export default function TestLoginPage() {
       if (loginResponseJson.status == ACCEPTED) {
         const username = data.get("username");
         sessionStorage.setItem("username", username);
+        // TODO: change to store session key instead
+        sessionStorage.setItem("email", loginResponseJson.email);
+        navigate("/verify");
 
-        try {
-          const featuresResponse = await fetch(
-            `http://localhost:8080/allowedFeatures/${username}`
-          );
-          if (!featuresResponse.ok) {
-            throw new Error(
-              `Failed to fetch allowed features: ${featuresResponse.statusText}`
-            );
-          }
-          const allowedFeatures = await featuresResponse.json();
-          sessionStorage.setItem("access", JSON.stringify(allowedFeatures));
-          navigate("/home");
-        } catch (featuresError) {
-          console.error("Error fetching allowed features:", featuresError);
-          alert(
-            "Login successful, but failed to load permissions. Please try again."
-          );
+        // try {
+        //   const featuresResponse = await fetch(
+        //     `http://localhost:8080/allowedFeatures/${username}`
+        //   );
+        //   if (!featuresResponse.ok) {
+        //     throw new Error(
+        //       `Failed to fetch allowed features: ${featuresResponse.statusText}`
+        //     );
+        //   }
+        //   const allowedFeatures = await featuresResponse.json();
+        //   sessionStorage.setItem("access", JSON.stringify(allowedFeatures));
+        //   navigate("/home");
+        // } catch (featuresError) {
+        //   console.error("Error fetching allowed features:", featuresError);
+        //   alert(
+        //     "Login successful, but failed to load permissions. Please try again."
+        //   );
 
-          sessionStorage.removeItem("username");
-        }
+        //   sessionStorage.removeItem("username");
+        // }
       } else {
         const errorMessage =
           loginResponseJson.error || "Incorrect login details";

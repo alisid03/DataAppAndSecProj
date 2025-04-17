@@ -24,65 +24,6 @@ const ALLOWED_TABLE_NAMES = [
   "TableIDs",
 ];
 
-db_connection.post('/getUser', async (req, res) => {
-    try {
-        const result = await getUsers(req);
-        if(result.password == req.body.password){
-            result.status = "ACCEPTED"
-        }
-        else {
-            result.status = "REJECTED"
-        }
-        console.log(result);
-        res.json(result);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-
-    // var result;
-    // result.status = "ACCEPTED";
-    // res.json(result);
-
-    // generate token and send email
-    // const response = await fetch("http://localhost:8080/sendEmail", {
-    //     method: "POST",
-    //     headers: {
-    //     "Access-Control-Allow-Origin" : "*",
-    //     "Content-type": "application/json",
-    //     },
-    //     body: JSON.stringify({
-    //         "email": // add email from getUsers,
-    //     }),
-    // });
-
-    // TODO: swap order so that token is saved to database first, then email is sent
-    // save token to database
-    // const writeToken = await writeToken(result.email, response.token);
-
-    // const result = await getUsers(req);
-    // if(result.password == req.body.password){
-    //     result.status = "ACCEPTED"
-    // }
-    // else {
-    //     result.status = "REJECTED"
-    // }
-    // console.log(result);
-    // res.json(result);
-});
-
-// async function writeToken(email, token) {
-//     return new Promise((resolve, reject) => {
-//         con.query(`INSERT INTO loginToken VALUES (${email}, ${token}, "")`, function (err, result) {
-//             if (err) {
-//                 return reject(err);
-//             } else {
-//                 resolve(result);
-//             }
-//         });
-//     });
-// }
-
 //getData function with Whitelisting
 async function getData(tableName) {
   return new Promise((resolve, reject) => {
@@ -231,6 +172,24 @@ db_connection.post("/getUser", async (req, res) => {
     if (userResult && userResult.password == req.body.password) {
       responseData = { ...userResult, status: "ACCEPTED" };
       delete responseData.password;
+
+      // TODO: move out of this post method
+      const response = await fetch("http://localhost:8080/sendEmail", {
+          method: "POST",
+          headers: {
+          "Access-Control-Allow-Origin" : "*",
+          "Content-type": "application/json",
+          },
+          body: JSON.stringify({
+              "email": userResult.email // add email from getUsers,
+              // "token": (method call for token)
+          }),
+      });
+      const resJson = await response.json();
+
+      // TODO: swap order so that token is saved to database first, then email is sent
+      // save token to database
+      await writeToken(userResult.email, resJson.token);
     } else if (userResult) {
       responseData.error = "Incorrect password";
     } else {
@@ -283,6 +242,22 @@ async function getUsers(request) {
         }
       }
     );
+  });
+}
+
+async function writeToken(email, token) {
+  return new Promise((resolve, reject) => {
+    con.query("INSERT INTO LoginToken VALUES (?, ?, '')",
+      [email, token], 
+      function (err, res) {
+        if (err) {
+          console.error("Error on writing token to database:", err);
+          return reject(err);
+        } else {
+          console.log("Successfully wrote token to database");
+          resolve(res);
+        }
+      })
   });
 }
 
@@ -483,6 +458,32 @@ async function checkUserExists(sanitizedUsername) {
       }
     );
   });
+}
+
+db_connection.post("/checkToken", async (req, res) => {
+  try {
+    const checkTokenRes = await checkToken(req);
+    res.json({ auth: checkTokenRes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Token authentication failed" });
+  }
+});
+
+async function checkToken(req) {
+  return new Promise((resolve, reject) => {
+    // TODO: add expiration timestamp check
+    con.query("SELECT * FROM LoginToken WHERE email = ? AND token = ?",
+      [req.body.email, req.body.token],
+      function (err, res) {
+        if (err) {
+          console.error("Error on checking token in database:", err);
+          return reject(err);
+        }
+        resolve(res.length > 0);
+      }
+    )
+  })
 }
 
 module.exports = db_connection;

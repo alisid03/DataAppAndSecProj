@@ -2,15 +2,11 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const rng = require('random-number-csprng');
 const app = express();
-// const bodyParser = require('body-parser');
-// const cors = require('cors');
 
 app.use(express.json());
-// app.use(bodyParser.json());
-// app.use(cors());
 
 app.post('/sendEmail', async (req, res) => {
-  const email = req.body.username;
+  const email = req.body.email;
   const token = await getToken();
   console.log(token);
 
@@ -38,7 +34,7 @@ app.post('/sendEmail', async (req, res) => {
       res.status(500).send({ success: false, error });
     } else {
       console.log('Email sent: ' + info.response);
-      res.send({ success: true, message: 'Email sent', token: token });
+      res.send({ success: true, token: token });
     }
   });
 });

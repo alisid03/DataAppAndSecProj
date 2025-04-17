@@ -12,6 +12,7 @@ import ProductCategoriesTables from "./DataViews/ProductCategories";
 import ProductsTables from "./DataViews/Products";
 import SignupPage from "./SignupPage";
 import RequestPage from "./RequestPage";
+import VerifyPage from "./Verify";
 import {
   BrowserRouter as Router,
   Routes,
@@ -160,6 +161,7 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/request" element={<RequestPage />} />
+          <Route path="/verify" element={<VerifyPage />} />
           {/* Added routes for Data Views */}
           <Route path="/getReviews" element={<ReviewTables />} />
           <Route path="/getCategories" element={<CategoriesTables />} />
