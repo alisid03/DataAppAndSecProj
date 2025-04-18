@@ -32,16 +32,35 @@ export default function Verify() {
                     "Content-type": "application/json"
                 },
                 body: JSON.stringify({
-                    // TODO: read username from cookie or storage?
-                    email: sessionStorage.getItem("email"),
-                    token: data.get("token")
+                    authToken: data.get("token"),
+                    sessionToken: sessionStorage.getItem("sessionToken"),
                 })
             });
             const responseJson = await response.json();
 
-            // TODO: move allowed features to post-verification success
             if (responseJson.auth) {
                 console.log("success");
+                try {
+                  const featuresResponse = await fetch(
+                    `http://localhost:8080/allowedFeatures/${sessionStorage.getItem("username")}`
+                  );
+                  if (!featuresResponse.ok) {
+                    throw new Error(
+                      `Failed to fetch allowed features: ${featuresResponse.statusText}`
+                    );
+                  }
+                  const allowedFeatures = await featuresResponse.json();
+                  sessionStorage.setItem("access", JSON.stringify(allowedFeatures));
+                  navigate("/home");
+                } catch (featuresError) {
+                  console.error("Error fetching allowed features:", featuresError);
+                  alert(
+                    "Login successful, but failed to load permissions. Please try again."
+                  );
+
+                  sessionStorage.removeItem("username");
+                  sessionStorage.removeItem("sessionToken");
+                }
             } else {
                 console.log("failure");
             }

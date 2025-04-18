@@ -170,10 +170,7 @@ db_connection.post("/getUser", async (req, res) => {
     let responseData = { status: "REJECTED" };
 
     if (userResult && userResult.password == req.body.password) {
-      responseData = { ...userResult, status: "ACCEPTED" };
-      delete responseData.password;
-
-      // TODO: move out of this post method
+      // get token and send email to user
       const response = await fetch("http://localhost:8080/sendEmail", {
           method: "POST",
           headers: {
@@ -181,15 +178,15 @@ db_connection.post("/getUser", async (req, res) => {
           "Content-type": "application/json",
           },
           body: JSON.stringify({
-              "email": userResult.email // add email from getUsers,
-              // "token": (method call for token)
+              "email": userResult.email
           }),
       });
       const resJson = await response.json();
 
-      // TODO: swap order so that token is saved to database first, then email is sent
-      // save token to database
-      await writeToken(userResult.email, resJson.token);
+      await writeToken(userResult.email, resJson.authToken, resJson.sessionToken);
+
+      responseData = { ...userResult, ...resJson, status: "ACCEPTED" };
+      delete responseData.password;
     } else if (userResult) {
       responseData.error = "Incorrect password";
     } else {
@@ -245,10 +242,10 @@ async function getUsers(request) {
   });
 }
 
-async function writeToken(email, token) {
+async function writeToken(email, authToken, sessionToken) {
   return new Promise((resolve, reject) => {
-    con.query("INSERT INTO LoginToken VALUES (?, ?, '')",
-      [email, token], 
+    con.query("INSERT INTO LoginToken VALUES (?, ?, '', ?)",
+      [email, authToken, sessionToken], 
       function (err, res) {
         if (err) {
           console.error("Error on writing token to database:", err);
@@ -473,8 +470,8 @@ db_connection.post("/checkToken", async (req, res) => {
 async function checkToken(req) {
   return new Promise((resolve, reject) => {
     // TODO: add expiration timestamp check
-    con.query("SELECT * FROM LoginToken WHERE email = ? AND token = ?",
-      [req.body.email, req.body.token],
+    con.query("SELECT * FROM LoginToken WHERE authToken = ? AND sessionToken = ?",
+      [req.body.authToken, req.body.sessionToken],
       function (err, res) {
         if (err) {
           console.error("Error on checking token in database:", err);
