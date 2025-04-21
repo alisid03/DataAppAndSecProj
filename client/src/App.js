@@ -2,6 +2,7 @@ import axios from "axios";
 import "./App.css";
 import TestLoginPage from "./LoginPage/TestLoginPage";
 import Home from "./Home/Home";
+import AdminPage from "./AdminPage";
 import ReviewTables from "./DataViews/Reviews";
 import CategoriesTables from "./DataViews/Categories";
 import CustomersTables from "./DataViews/Customers";
@@ -163,6 +164,8 @@ function App() {
           <Route path="/request" element={<RequestPage />} />
           <Route path="/verify" element={<VerifyPage />} />
           {/* Added routes for Data Views */}
+          <Route path='/admin' element={<AdminPage/>}></Route>
+            {/* Added routes for Data Views */}
           <Route path="/getReviews" element={<ReviewTables />} />
           <Route path="/getCategories" element={<CategoriesTables />} />
           <Route path="/getCustomers" element={<CustomersTables />} />

@@ -6,8 +6,8 @@ var con = mysql.createConnection({
     host: "cs6348-project.crsmosm2myjt.us-east-2.rds.amazonaws.com",
     user: "admin",
     password: "AqpZo1I0QOpmcgjJ8FiU",
-    database: "CS6348_Proj"
-})
+    database: "CS6348_Proj",
+});
 
 const ALLOWED_TABLE_NAMES = [
   "Categories",
@@ -206,6 +206,31 @@ db_connection.post("/getUser", async (req, res) => {
     });
   }
 });
+
+
+db_connection.get('/getPendingRequests', async (req, res) => {
+    try {
+        const result = await getRequests(req);
+        console.log(result);
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+async function getRequests(request) {
+    return new Promise((resolve, reject) => {
+        console.log(request.body);
+        con.query("SELECT * FROM Requests", function (err, rows) {
+            if (err) {
+                return reject(err);
+            }
+            console.log(rows);
+            resolve(rows); // Resolve the promise with the result
+        });
+    });
+}
 
 async function getUsers(request) {
   return new Promise((resolve, reject) => {
