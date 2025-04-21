@@ -25,6 +25,65 @@ const ALLOWED_TABLE_NAMES = [
 ];
 
 //getData function with Whitelisting
+db_connection.post('/getUser', async (req, res) => {
+    try {
+        const result = await getUsers(req);
+        if(result.password == req.body.password){
+            result.status = "ACCEPTED"
+        }
+        else {
+            result.status = "REJECTED"
+        }
+        console.log(result);
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+
+    // var result;
+    // result.status = "ACCEPTED";
+    // res.json(result);
+
+    // generate token and send email
+    // const response = await fetch("http://localhost:8080/sendEmail", {
+    //     method: "POST",
+    //     headers: {
+    //     "Access-Control-Allow-Origin" : "*",
+    //     "Content-type": "application/json",
+    //     },
+    //     body: JSON.stringify({
+    //         "email": // add email from getUsers,
+    //     }),
+    // });
+
+    // TODO: swap order so that token is saved to database first, then email is sent
+    // save token to database
+    // const writeToken = await writeToken(result.email, response.token);
+
+    // const result = await getUsers(req);
+    // if(result.password == req.body.password){
+    //     result.status = "ACCEPTED"
+    // }
+    // else {
+    //     result.status = "REJECTED"
+    // }
+    // console.log(result);
+    // res.json(result);
+});
+
+// async function writeToken(email, token) {
+//     return new Promise((resolve, reject) => {
+//         con.query(`INSERT INTO loginToken VALUES (${email}, ${token}, "")`, function (err, result) {
+//             if (err) {
+//                 return reject(err);
+//             } else {
+//                 resolve(result);
+//             }
+//         });
+//     });
+// }
+
 async function getData(tableName) {
   return new Promise((resolve, reject) => {
     if (!ALLOWED_TABLE_NAMES.includes(tableName)) {
@@ -189,6 +248,31 @@ db_connection.post("/getUser", async (req, res) => {
     });
   }
 });
+
+
+db_connection.get('/getPendingRequests', async (req, res) => {
+    try {
+        const result = await getRequests(req);
+        console.log(result);
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+async function getRequests(request) {
+    return new Promise((resolve, reject) => {
+        console.log(request.body);
+        con.query("SELECT * FROM Requests", function (err, rows) {
+            if (err) {
+                return reject(err);
+            }
+            console.log(rows);
+            resolve(rows); // Resolve the promise with the result
+        });
+    });
+}
 
 async function getUsers(request) {
   return new Promise((resolve, reject) => {
