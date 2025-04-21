@@ -2,17 +2,13 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const rng = require('random-number-csprng');
 const app = express();
-// const bodyParser = require('body-parser');
-// const cors = require('cors');
 
 app.use(express.json());
-// app.use(bodyParser.json());
-// app.use(cors());
 
 app.post('/sendEmail', async (req, res) => {
-  const email = req.body.username;
-  const token = await getToken();
-  console.log(token);
+  const email = req.body.email;
+  const authToken = await getAuthToken();
+  console.log("authToken:", authToken);
 
   // create transporter with email service and credentials
   const transporter = nodemailer.createTransport({
@@ -28,7 +24,7 @@ app.post('/sendEmail', async (req, res) => {
     from: 'testaccm24@gmail.com',
     to: email,
     subject: 'MFA Verification',
-    text: `This is a multi-factor authentication email to access the database using G-COD! Token generated: ${token}`
+    text: `This is a multi-factor authentication email to access the database using G-COD! Token generated: ${authToken}`
   };
 
   // send email
@@ -38,13 +34,13 @@ app.post('/sendEmail', async (req, res) => {
       res.status(500).send({ success: false, error });
     } else {
       console.log('Email sent: ' + info.response);
-      res.send({ success: true, message: 'Email sent', token: token });
+      res.send({ success: true, authToken: authToken });
     }
   });
 });
 
 // securely generate random 6-digit code
-function getToken() {
+function getAuthToken() {
   return new Promise ((resolve, reject) => {
     try {
       resolve(rng(111111, 999999), 200);

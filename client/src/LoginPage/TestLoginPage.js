@@ -61,34 +61,9 @@ export default function TestLoginPage() {
       const loginResponseJson = await response.json();
       const isAdmin = loginResponseJson.isAdmin;
       if (loginResponseJson.status == ACCEPTED) {
-        const username = data.get("username");
-        sessionStorage.setItem("username", username);
-
-        try {
-          const featuresResponse = await fetch(
-            `http://localhost:8080/allowedFeatures/${username}`
-          );
-          if (!featuresResponse.ok) {
-            throw new Error(
-              `Failed to fetch allowed features: ${featuresResponse.statusText}`
-            );
-          }
-          const allowedFeatures = await featuresResponse.json();
-          if (isAdmin) {
-            navigate("/admin");
-          }
-          else {
-            sessionStorage.setItem("access", JSON.stringify(allowedFeatures));
-            navigate("/home");
-          }
-        } catch (featuresError) {
-          console.error("Error fetching allowed features:", featuresError);
-          alert(
-            "Login successful, but failed to load permissions. Please try again."
-          );
-
-          sessionStorage.removeItem("username");
-        }
+        sessionStorage.setItem("username", data.get("username"));
+        sessionStorage.setItem("sessionToken", loginResponseJson.sessionToken);
+        navigate("/verify");
       } else {
         const errorMessage =
           loginResponseJson.error || "Incorrect login details";

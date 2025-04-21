@@ -1,12 +1,13 @@
 var mysql = require("mysql2");
 const express = require("express");
+const uuid4 = require('uuid4');
 const db_connection = express();
 db_connection.use(express.json());
 var con = mysql.createConnection({
-  host: "cs6348-project.crsmosm2myjt.us-east-2.rds.amazonaws.com",
-  user: "admin",
-  password: "AqpZo1I0QOpmcgjJ8FiU",
-  database: "CS6348_Proj",
+    host: "cs6348-project.crsmosm2myjt.us-east-2.rds.amazonaws.com",
+    user: "admin",
+    password: "AqpZo1I0QOpmcgjJ8FiU",
+    database: "CS6348_Proj",
 });
 
 const ALLOWED_TABLE_NAMES = [
@@ -25,65 +26,6 @@ const ALLOWED_TABLE_NAMES = [
 ];
 
 //getData function with Whitelisting
-db_connection.post('/getUser', async (req, res) => {
-    try {
-        const result = await getUsers(req);
-        if(result.password == req.body.password){
-            result.status = "ACCEPTED"
-        }
-        else {
-            result.status = "REJECTED"
-        }
-        console.log(result);
-        res.json(result);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-
-    // var result;
-    // result.status = "ACCEPTED";
-    // res.json(result);
-
-    // generate token and send email
-    // const response = await fetch("http://localhost:8080/sendEmail", {
-    //     method: "POST",
-    //     headers: {
-    //     "Access-Control-Allow-Origin" : "*",
-    //     "Content-type": "application/json",
-    //     },
-    //     body: JSON.stringify({
-    //         "email": // add email from getUsers,
-    //     }),
-    // });
-
-    // TODO: swap order so that token is saved to database first, then email is sent
-    // save token to database
-    // const writeToken = await writeToken(result.email, response.token);
-
-    // const result = await getUsers(req);
-    // if(result.password == req.body.password){
-    //     result.status = "ACCEPTED"
-    // }
-    // else {
-    //     result.status = "REJECTED"
-    // }
-    // console.log(result);
-    // res.json(result);
-});
-
-// async function writeToken(email, token) {
-//     return new Promise((resolve, reject) => {
-//         con.query(`INSERT INTO loginToken VALUES (${email}, ${token}, "")`, function (err, result) {
-//             if (err) {
-//                 return reject(err);
-//             } else {
-//                 resolve(result);
-//             }
-//         });
-//     });
-// }
-
 async function getData(tableName) {
   return new Promise((resolve, reject) => {
     if (!ALLOWED_TABLE_NAMES.includes(tableName)) {
@@ -229,7 +171,25 @@ db_connection.post("/getUser", async (req, res) => {
     let responseData = { status: "REJECTED" };
 
     if (userResult && userResult.password == req.body.password) {
-      responseData = { ...userResult, status: "ACCEPTED" };
+      await deleteTokenByEmail(userResult.email);
+      const sessionToken = await getSessionToken();
+
+      // get auth and session tokens and send email to user
+      const response = await fetch("http://localhost:8080/sendEmail", {
+          method: "POST",
+          headers: {
+            "Access-Control-Allow-Origin" : "*",
+            "Content-type": "application/json",
+          },
+          body: JSON.stringify({
+              "email": userResult.email
+          }),
+      });
+      const resJson = await response.json();
+
+      await writeToken(userResult.email, resJson.authToken, sessionToken);
+
+      responseData = { ...userResult, ...resJson, sessionToken: sessionToken, status: "ACCEPTED" };
       delete responseData.password;
     } else if (userResult) {
       responseData.error = "Incorrect password";
@@ -508,6 +468,140 @@ async function checkUserExists(sanitizedUsername) {
       }
     );
   });
+}
+
+db_connection.post("/checkToken", async (req, res) => {
+  try {
+    const checkTokenRes = await checkToken(req);
+
+    // matching session token and not expired
+    if (checkTokenRes.length > 0) {
+      // matching auth token
+      if (checkTokenRes[0].authToken == req.body.authToken) {
+        deleteTokenBySession(req.body.sessionToken);
+        res.json({ auth: true, retry: false, expire: false, max: false });
+      } else { 
+        // wrong auth token, increment number of tries
+        updateNumTries(req.body.sessionToken);
+        res.json({ auth: false, retry: true, expire: false, max: false });
+      }
+    } else {
+      // check if token expired or max attempts reached, delete from table
+      const expired = await checkTokenFailure(req.body.sessionToken);
+      deleteTokenBySession(req.body.sessionToken);
+      if (expired) {
+        res.json({ auth: false, retry: false, expire: true, max: false });
+      } else {
+        res.json({ auth: false, retry: false, expire: false, max: true });
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Token authentication failed" });
+  }
+});
+
+// generate uuid4 string
+async function getSessionToken() {
+  return new Promise ((resolve, reject) => {
+    try {
+      resolve(uuid4());
+    } catch(error) {
+      console.log(error);
+      reject(error);
+    }
+  })
+}
+
+async function writeToken(email, authToken, sessionToken) {
+  return new Promise((resolve, reject) => {
+    con.query("INSERT INTO LoginToken VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE), ?, 0)",
+      [email, authToken, sessionToken], 
+      function (err, res) {
+        if (err) {
+          console.error("Error on writing token to database:", err);
+          reject(err);
+        } else {
+          console.log("Successfully wrote token to database");
+          resolve(res);
+        }
+      })
+  });
+}
+
+async function checkToken(req) {
+  return new Promise((resolve, reject) => {
+    con.query("SELECT * FROM LoginToken WHERE sessionToken = ? AND NOW() < expirationTime AND numTries < 5",
+      [req.body.sessionToken],
+      function (err, res) {
+        if (err) {
+          console.error("Error on checking token in database:", err);
+          reject(err);
+        }
+        resolve(res);
+      }
+    )
+  })
+}
+
+async function updateNumTries(sessionToken) {
+  return new Promise((resolve, reject) => {
+    con.query("UPDATE LoginToken SET numTries = numTries + 1 WHERE sessionToken = ?",
+      [sessionToken],
+      function (err, res) {
+        if (err) {
+          console.error("Error on updating numTries in database:", err);
+          reject(err);
+        }
+        resolve(null);
+      }
+    )
+  })
+}
+
+async function checkTokenFailure(sessionToken) {
+  return new Promise((resolve, reject) => {
+    con.query("SELECT * FROM LoginToken WHERE sessionToken = ? AND NOW() > expirationTime",
+      [sessionToken],
+      function (err, res) {
+        if (err) {
+          console.error("Error on deleting token in database:", err);
+          reject(err);
+        }
+        resolve(res.length > 0);
+      }
+    )
+  })
+}
+
+async function deleteTokenBySession(sessionToken) {
+  return new Promise((resolve, reject) => {
+    con.query("DELETE FROM LoginToken WHERE sessionToken = ?",
+      [sessionToken],
+      function (err, res) {
+        if (err) {
+          console.error("Error on deleting token in database:", err);
+          reject(err);
+        }
+        resolve(null);
+      }
+    )
+  })
+}
+
+async function deleteTokenByEmail(email) {
+  return new Promise((resolve, reject) => {
+    con.query("DELETE FROM LoginToken WHERE email = ?",
+      [email],
+      function (err, res) {
+        if (err) {
+          console.error("Error on deleting token in database:", err);
+          reject(err);
+        }
+        resolve(null);
+      }
+    )
+  })
 }
 
 module.exports = db_connection;
