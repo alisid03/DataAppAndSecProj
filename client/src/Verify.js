@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -14,11 +14,33 @@ import Container from "@mui/material/Container";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@mui/material";
+import Snackbar from "@mui/material/Snackbar";
+import MuiAlert from "@mui/material/Alert";
+
+const Alert = React.forwardRef(function Alert(props, ref) {
+  return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
+});
 
 const defaultTheme = createTheme();
 
 export default function Verify() {
     const navigate = useNavigate();
+    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState("");
+    const [snackbarSeverity, setSnackbarSeverity] = useState("info");
+
+    const handleSnackbarClose = (event, reason) => {
+    if (reason === "clickaway") {
+        return;
+    }
+        setSnackbarOpen(false);
+    };
+
+    const showSnackbar = (message, severity = "info") => {
+        setSnackbarMessage(message);
+        setSnackbarSeverity(severity);
+        setSnackbarOpen(true);
+    };
 
     async function handleSubmit(event) {
         event.preventDefault();
@@ -51,7 +73,8 @@ export default function Verify() {
                   }
                   const allowedFeatures = await featuresResponse.json();
                   sessionStorage.setItem("access", JSON.stringify(allowedFeatures));
-                  navigate("/home");
+                  showSnackbar("Authentication successful, redirecting to home page.", "success");
+                  setTimeout(() => navigate("/home"), 1500);
                 } catch (featuresError) {
                   console.error("Error fetching allowed features:", featuresError);
                   alert(
@@ -61,8 +84,16 @@ export default function Verify() {
                   sessionStorage.removeItem("username");
                   sessionStorage.removeItem("sessionToken");
                 }
+            } else if (responseJson.expire) {
+                // return to login page and make new token
+                console.log("failure - expired");
+                showSnackbar("Authentication token expired, please log in again. Redirecting...", "error");
+                setTimeout(() => navigate("/"), 1500);
             } else {
-                console.log("failure");
+                // unknown error
+                console.log("failure - unknown");
+                showSnackbar("An error occurred during authentication, please log in again. Redirecting...", "error");
+                setTimeout(() => navigate("/"), 1500);
             }
         } catch (err) {
             console.error(err);
@@ -119,6 +150,20 @@ export default function Verify() {
             src={process.env.PUBLIC_URL + "/logo.png"}
             alt=""
         />
+        <Snackbar
+            open={snackbarOpen}
+            autoHideDuration={4000}
+            onClose={handleSnackbarClose}
+            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+            <Alert
+            onClose={handleSnackbarClose}
+            severity={snackbarSeverity}
+            sx={{ width: "100%" }}
+            >
+            {snackbarMessage}
+            </Alert>
+        </Snackbar>
         </Container>
         </ThemeProvider>
     );
