@@ -22,7 +22,7 @@ function AdminPage() {
             const res = await fetch('http://localhost:8080/approveAccess', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username, tableID:page})
+                body: JSON.stringify({username, page})
             });
             const data = await res.json();
             if (data.success) {

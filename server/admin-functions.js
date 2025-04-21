@@ -10,15 +10,15 @@ const con =  mysql.createConnection({
 });
 
 db_connection.post("/approveAccess", async (req, res) => {
-    const { username, tableID } = req.body;
-    console.log(username,tableID);
+    const { username, page } = req.body;
+    console.log(username,page);
 
     try {
         // Insert into AccessTables
         await new Promise((resolve, reject) => {
             con.query(
                 'INSERT INTO AccessTables (username, expirationTime, tableID) VALUES (?, NOW(), ?)',
-                [username, tableID],
+                [username, page],
                 (err, results) => {
                     if (err) return reject(err);
                     resolve(results);
@@ -30,7 +30,7 @@ db_connection.post("/approveAccess", async (req, res) => {
         await new Promise((resolve, reject) => {
             con.query(
                 'DELETE FROM Requests WHERE username = ? AND page = ?',
-                [username, tableID],
+                [username, page],
                 (err, results) => {
                     if (err) return reject(err);
                     resolve(results);
@@ -48,13 +48,13 @@ db_connection.post("/approveAccess", async (req, res) => {
 
 
 db_connection.post("/rejectAccess", async (req, res) => {
-    const { username, tableID } = req.body;
+    const { username, page } = req.body;
 
     try {
         await new Promise((resolve, reject) => {
             con.query(
                 'DELETE FROM Requests WHERE username = ? AND page = ?',
-                [username, tableID], // 'page' is the correct column name in Requests table
+                [username, page], // 'page' is the correct column name in Requests table
                 (err, results) => {
                     if (err) return reject(err);
                     resolve(results);
