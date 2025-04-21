@@ -1,5 +1,6 @@
 var mysql = require("mysql2");
 const express = require("express");
+const uuid4 = require('uuid4');
 const db_connection = express();
 db_connection.use(express.json());
 var con = mysql.createConnection({
@@ -171,13 +172,14 @@ db_connection.post("/getUser", async (req, res) => {
 
     if (userResult && userResult.password == req.body.password) {
       await deleteTokenByEmail(userResult.email);
-      
-      // get token and send email to user
+      const sessionToken = await getSessionToken();
+
+      // get auth and session tokens and send email to user
       const response = await fetch("http://localhost:8080/sendEmail", {
           method: "POST",
           headers: {
-          "Access-Control-Allow-Origin" : "*",
-          "Content-type": "application/json",
+            "Access-Control-Allow-Origin" : "*",
+            "Content-type": "application/json",
           },
           body: JSON.stringify({
               "email": userResult.email
@@ -185,9 +187,9 @@ db_connection.post("/getUser", async (req, res) => {
       });
       const resJson = await response.json();
 
-      await writeToken(userResult.email, resJson.authToken, resJson.sessionToken);
+      await writeToken(userResult.email, resJson.authToken, sessionToken);
 
-      responseData = { ...userResult, ...resJson, status: "ACCEPTED" };
+      responseData = { ...userResult, ...resJson, sessionToken: sessionToken, status: "ACCEPTED" };
       delete responseData.password;
     } else if (userResult) {
       responseData.error = "Incorrect password";
@@ -266,22 +268,6 @@ async function getUsers(request) {
         }
       }
     );
-  });
-}
-
-async function writeToken(email, authToken, sessionToken) {
-  return new Promise((resolve, reject) => {
-    con.query("INSERT INTO LoginToken VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE), ?)",
-      [email, authToken, sessionToken], 
-      function (err, res) {
-        if (err) {
-          console.error("Error on writing token to database:", err);
-          return reject(err);
-        } else {
-          console.log("Successfully wrote token to database");
-          resolve(res);
-        }
-      })
   });
 }
 
@@ -487,38 +473,102 @@ async function checkUserExists(sanitizedUsername) {
 db_connection.post("/checkToken", async (req, res) => {
   try {
     const checkTokenRes = await checkToken(req);
-    res.json({ ...checkTokenRes });
+
+    // matching session token and not expired
+    if (checkTokenRes.length > 0) {
+      // matching auth token
+      if (checkTokenRes[0].authToken == req.body.authToken) {
+        deleteTokenBySession(req.body.sessionToken);
+        res.json({ auth: true, retry: false, expire: false, max: false });
+      } else { 
+        // wrong auth token, increment number of tries
+        updateNumTries(req.body.sessionToken);
+        res.json({ auth: false, retry: true, expire: false, max: false });
+      }
+    } else {
+      // check if token expired or max attempts reached, delete from table
+      const expired = await checkTokenFailure(req.body.sessionToken);
+      deleteTokenBySession(req.body.sessionToken);
+      if (expired) {
+        res.json({ auth: false, retry: false, expire: true, max: false });
+      } else {
+        res.json({ auth: false, retry: false, expire: false, max: true });
+      }
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Token authentication failed" });
   }
 });
 
+// generate uuid4 string
+async function getSessionToken() {
+  return new Promise ((resolve, reject) => {
+    try {
+      resolve(uuid4());
+    } catch(error) {
+      console.log(error);
+      reject(error);
+    }
+  })
+}
+
+async function writeToken(email, authToken, sessionToken) {
+  return new Promise((resolve, reject) => {
+    con.query("INSERT INTO LoginToken VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE), ?, 0)",
+      [email, authToken, sessionToken], 
+      function (err, res) {
+        if (err) {
+          console.error("Error on writing token to database:", err);
+          reject(err);
+        } else {
+          console.log("Successfully wrote token to database");
+          resolve(res);
+        }
+      })
+  });
+}
+
 async function checkToken(req) {
   return new Promise((resolve, reject) => {
-    con.query("SELECT * FROM LoginToken WHERE sessionToken = ? AND NOW() < expirationTime",
+    con.query("SELECT * FROM LoginToken WHERE sessionToken = ? AND NOW() < expirationTime AND numTries < 5",
       [req.body.sessionToken],
       function (err, res) {
         if (err) {
           console.error("Error on checking token in database:", err);
-          return reject(err);
+          reject(err);
         }
+        resolve(res);
+      }
+    )
+  })
+}
 
-        // matching session token and not expired
-        if (res.length > 0) {
-          // matching auth token
-          if (res[0].authToken == req.body.authToken) {
-            deleteTokenBySession(req.body.sessionToken);
-            resolve({ auth: true, expire: false });
-          } else { 
-            // wrong auth token
-            resolve({ auth: false, expire: false });
-          }
-        } else {
-          // token expired, delete from table
-          deleteTokenBySession(req.body.sessionToken);
-          resolve({ auth: false, expire: true });
+async function updateNumTries(sessionToken) {
+  return new Promise((resolve, reject) => {
+    con.query("UPDATE LoginToken SET numTries = numTries + 1 WHERE sessionToken = ?",
+      [sessionToken],
+      function (err, res) {
+        if (err) {
+          console.error("Error on updating numTries in database:", err);
+          reject(err);
         }
+        resolve(null);
+      }
+    )
+  })
+}
+
+async function checkTokenFailure(sessionToken) {
+  return new Promise((resolve, reject) => {
+    con.query("SELECT * FROM LoginToken WHERE sessionToken = ? AND NOW() > expirationTime",
+      [sessionToken],
+      function (err, res) {
+        if (err) {
+          console.error("Error on deleting token in database:", err);
+          reject(err);
+        }
+        resolve(res.length > 0);
       }
     )
   })
@@ -531,9 +581,9 @@ async function deleteTokenBySession(sessionToken) {
       function (err, res) {
         if (err) {
           console.error("Error on deleting token in database:", err);
-          return reject(err);
+          reject(err);
         }
-        resolve(res.length > 0);
+        resolve(null);
       }
     )
   })
@@ -546,9 +596,9 @@ async function deleteTokenByEmail(email) {
       function (err, res) {
         if (err) {
           console.error("Error on deleting token in database:", err);
-          return reject(err);
+          reject(err);
         }
-        resolve(res.length > 0);
+        resolve(null);
       }
     )
   })

@@ -84,10 +84,18 @@ export default function Verify() {
                   sessionStorage.removeItem("username");
                   sessionStorage.removeItem("sessionToken");
                 }
+            } else if (responseJson.retry) {
+                // tell user to try again
+                alert("Incorrect token");
             } else if (responseJson.expire) {
-                // return to login page and make new token
+                // return to login page and make new token (token expired)
                 console.log("failure - expired");
                 showSnackbar("Authentication token expired, please log in again. Redirecting...", "error");
+                setTimeout(() => navigate("/"), 1500);
+            } else if (responseJson.max) {
+                // return to login page and make new token (too many attempts)
+                console.log("failure - max");
+                showSnackbar("Max authentication attempts reached, please log in again. Redirecting...", "error");
                 setTimeout(() => navigate("/"), 1500);
             } else {
                 // unknown error
