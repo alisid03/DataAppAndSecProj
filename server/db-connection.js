@@ -2,7 +2,14 @@ var mysql = require("mysql2");
 const express = require("express");
 const uuid4 = require('uuid4');
 const db_connection = express();
-db_connection.use(express.json());
+const crypto = require("crypto");
+const cors = require("cors");
+
+
+
+// ── MIDDLEWARE ──
+db_connection.use(cors({ origin: "*" })); // or '*' for dev
+db_connection.use(express.json())
 var con = mysql.createConnection({
     host: "cs6348-project.crsmosm2myjt.us-east-2.rds.amazonaws.com",
     user: "admin",
@@ -24,6 +31,42 @@ const ALLOWED_TABLE_NAMES = [
   "LoginToken",
   "TableIDs",
 ];
+
+const serverPrivateKey =`
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDrJ0h55bmr3zLo
+S6ysBVFHjfX5nWct8ij65DZMON7F1k/w/o8u2n33PoTPBXsxFJ25ICuVLvqwcGI1
+9m/oDwduejBZrij8jbLUu+5T9HqUn/HDHU6F8DWSDQSjK6qhLF+26UwIycPFmZqQ
+cxDVVSK/fm+DvmoRHImBLjWnUbFRJpIxXob/EUmg/3xhYgGtaslwjQX88a4PM4gw
+Jb8tJdtexpBf6zoyb8T2LHpZ7+gJNQ5FtPWdkibQ1nIXeNd8ImCT2m6/AkroIjSu
+G51pfjBQEK4k7dXiag/fqt6jniUb/bEFQldYST+Gbi4X3DhXWhvNQmdG25MdOGkl
+X5Iw/ErbAgMBAAECggEAbFp/hNubwFxqYqtr9x/EIgqByvECeCNbSrAZbOnPjK2B
+zHQfmeFHpcODArlt2GG9g24VZvpsvRwrxN23FuDF9dwLp2cer7DDNE8cNEc0rIM+
+rT81zXWv2YpyFpWqW/XMbMX3KR1/Pe/XTrQWj5ZZGo+x5qy4xwW1PncCdgSohdEz
+xK3uZ/6+5buPUyagvbjXE259TLmv47jlZFRAWqa3uxG2/2p6z1IHfQgwyx5eHlAE
++ujTkU/97HP/2S8Ihz4huuTo9K9h/Dmr7gH3TBDhAee9zgAyx61z2D1FynRcH4aE
+MD6wEGsn6CMps7MEhu9/lS7xNsTToXRT5qjqQe4ocQKBgQD/YkPmWBRJlOHEHM6p
+Et5ocTffiC1khPJn6z3eOpAayYEbjAD12+jo49xqR585GsT3MUx2FURVNlOQGZfG
+L4dNfKbctSpd/2b0XpBNP47Iu/zecuKFkTmzMSq3eKS813grrSVk7M4LiCKRysTS
+UZpRK+nbKzQTaAakszblP45G/QKBgQDruIXXHJOnFOUQoU00hWAabepP4h3apNmK
+Od8KGypkNyBO0pSCARFShoX/U3q81BsebiJriqXArc5ylsC4Zy9rp1QXShUKqwTe
+E9jrxj1af+ltRndXxz4zgEoVgNlOmV/vQRBqLc5yv7kjwyzcgLR2Gt+Jq0LEZ/c+
+tx+7jQl8twKBgQD7P9XFXIo5CfxDUIQQ2rtszVZG2FawOguyKUGozLzRXcVjMI4R
+U9UEqohDF0uShr+Y4itzUOD1ZIk5j7Q+Cqx2k1gmcyXHbGoBqLcXCJyU6D2TLDun
+ZIT7wjdgYZTRJLrZXXMYo9Dij4BTJsYUlKvZh/Z+5TZKkWFXz+kGCU0UkQKBgACL
+9QOCtXT1v3JCbYNpq8dj6d81jwwqxbZkW/gSCA8jcZe9NUr35apjVXw6HVbCxy1S
+5BGLyMahoJDzeI707k85nCBRs6rKqsA5G4+wbgP/t/Lg7vXtKF/GNGXIXrin8mkD
+pZ4ZbRknCK7kjP4V7lU3yrzvAMCj3RbwJcqxkQwRAoGBAIw2fjIImU+8eLcpPEYu
+KcZTYKgDGBLUlGl+BEqbCusJr5my6VhMclS7hx6UHCgU2vaVet9Wu7ze+knVRhHi
+CCUXau31F8S8lUiuO9VC8tNcq2n71mFCV5+McSPqab7BU6Ug/XHscMD5yMBrJ7xB
+oY1fRpUw1yIHjXWaOjX7hITJ
+-----END PRIVATE KEY-----
+`;
+
+
+
+
+
 
 //getData function with Whitelisting
 async function getData(tableName) {
@@ -164,10 +207,51 @@ db_connection.get("/getTableIDs", async (req, res) => {
   }
 });
 
+function decryptPayload(base64Encrypted) {
+  const buffer = Buffer.from(base64Encrypted, 'base64');
+
+  return crypto.privateDecrypt(
+    {
+      key: serverPrivateKey,
+      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+      oaepHash: 'sha256',
+    },
+    buffer
+  ).toString('utf8');
+}
+
 db_connection.post("/getUser", async (req, res) => {
   try {
-    const userResult = await getUsers(req);
+    const decrypted = decryptPayload(req.body.encrypted);
 
+    const { username, password } = JSON.parse(decrypted);
+    const signature = req.body.signature;
+    
+    req.body.username = username;
+    req.body.password = password;
+
+    console.log("Incoming /getUser body:", req.body);
+
+    const verifier = crypto.createVerify("SHA256");
+    const payloadStr = JSON.stringify({ username, password });
+    verifier.update(payloadStr);
+    verifier.end();
+
+    const sigBuffer = Buffer.from(signature, "base64");
+    const clientPub = req.body.clientPublicKey;
+    if (!clientPub) {
+      return res.status(400).json({ status: "REJECTED", error: "Client public key not registered" });
+    }
+
+    const valid = verifier.verify(
+      { key: clientPub, padding: crypto.constants.RSA_PKCS1_PADDING },
+      sigBuffer
+    );
+    if (!valid) {
+      return res.status(400).json({ status: "REJECTED", error: "Invalid signature" });
+    }
+    
+    const userResult = await getUsers(req);
     let responseData = { status: "REJECTED" };
 
     if (userResult && userResult.password == req.body.password) {
@@ -189,8 +273,8 @@ db_connection.post("/getUser", async (req, res) => {
 
       await writeToken(userResult.email, resJson.authToken, sessionToken);
 
-      responseData = { ...userResult, ...resJson, sessionToken: sessionToken, status: "ACCEPTED" };
-      delete responseData.password;
+      responseData = { username: userResult.username, sessionToken: resJson.sessionToken, status: "ACCEPTED" }; 
+
     } else if (userResult) {
       responseData.error = "Incorrect password";
     } else {
@@ -472,6 +556,7 @@ async function checkUserExists(sanitizedUsername) {
 
 db_connection.post("/checkToken", async (req, res) => {
   try {
+    //decrypt request (auth token, session token)
     const checkTokenRes = await checkToken(req);
 
     // matching session token and not expired
