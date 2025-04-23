@@ -17,6 +17,55 @@ import { Icon } from "@mui/material";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 
+const serverPublicKeyPEM =`
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6ydIeeW5q98y6EusrAVR
+R431+Z1nLfIo+uQ2TDjexdZP8P6PLtp99z6EzwV7MRSduSArlS76sHBiNfZv6A8H
+bnowWa4o/I2y1LvuU/R6lJ/xwx1OhfA1kg0EoyuqoSxftulMCMnDxZmakHMQ1VUi
+v35vg75qERyJgS41p1GxUSaSMV6G/xFJoP98YWIBrWrJcI0F/PGuDzOIMCW/LSXb
+XsaQX+s6Mm/E9ix6We/oCTUORbT1nZIm0NZyF3jXfCJgk9puvwJK6CI0rhudaX4w
+UBCuJO3V4moP36reo54lG/2xBUJXWEk/hm4uF9w4V1obzUJnRtuTHThpJV+SMPxK
+2wIDAQAB
+-----END PUBLIC KEY-----
+`;
+
+async function importServerKey(pem) {
+    // fetch the part of the PEM string between header and footer
+    const cleanPem = pem
+      .replace(/-----BEGIN PUBLIC KEY-----/, "")
+      .replace(/-----END PUBLIC KEY-----/, "")
+      .replace(/\s+/g, "");
+  
+    // base64 decode the string to get the binary data
+    const der = Uint8Array.from(atob(cleanPem), c => c.charCodeAt(0));
+  
+    return await window.crypto.subtle.importKey(
+      "spki",
+      der.buffer,
+      {
+        name: "RSA-OAEP",
+        hash: "SHA-256",
+      },
+      true,
+      ["encrypt"],
+    );
+  }
+
+async function encryptPayload(publicKey, authToken, sessionToken){
+    const data = JSON.stringify({ authToken, sessionToken });
+    const encoded = new TextEncoder().encode(data);
+
+    const ciphertext = await window.crypto.subtle.encrypt(
+        {
+        name: "RSA-OAEP"
+        },
+        publicKey,
+        encoded
+    );
+
+    return btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
+}
+
 const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
@@ -42,10 +91,19 @@ export default function Verify() {
         setSnackbarOpen(true);
     };
 
+    
+
     async function handleSubmit(event) {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
-
+        const serverPublicKey = await importServerKey(serverPublicKeyPEM);
+        const authToken = data.get("token");
+        const sessionToken = sessionStorage.getItem("sessionToken");
+        const encryptedPayload = await encryptPayload(serverPublicKey, authToken, sessionToken);
+        
+        const body = {
+            encrypted: encryptedPayload
+        };
         try {
             const response = await fetch("http://localhost:8080/checkToken", {
                 method: "POST",
@@ -53,10 +111,7 @@ export default function Verify() {
                     "Access-Control-Allow-Origin": "*",
                     "Content-type": "application/json"
                 },
-                body: JSON.stringify({
-                    authToken: data.get("token"),
-                    sessionToken: sessionStorage.getItem("sessionToken"),
-                })
+                body: JSON.stringify(body)
             });
             const responseJson = await response.json();
 
