@@ -171,7 +171,6 @@ db_connection.post("/getUser", async (req, res) => {
     let responseData = { status: "REJECTED" };
 
     if (userResult && userResult.password == req.body.password) {
-      await deleteTokenByEmail(userResult.email);
       const sessionToken = await getSessionToken();
 
       // get auth and session tokens and send email to user
@@ -273,19 +272,26 @@ async function getUsers(request) {
 
 db_connection.post("/createUser", async (req, res) => {
   try {
-    if (!req.body.username || !req.body.password) {
+    const username = req.body.username;
+    const email = req.body.email;
+    const password = req.body.password;
+    const userBadRegex = new RegExp("[^a-zA-Z0-9]");
+    const emailBadRegex = new RegExp("[^a-zA-Z0-9@.]");
+
+    if (username != encodeURIComponent(username).replace(userBadRegex, "")) {
+      return res.status(400).json({ error: "Username cannot contain any special characters." });
+    }
+    if (email != encodeURIComponent(email).replace("%40", "@").replace(emailBadRegex, "")) {
+      return res.status(400).json({ error: "Email cannot contain any special characters." });
+    }
+
+    if (!username || !email || !password) {
       return res
         .status(400)
-        .json({ error: "Username and password are required" });
-    }
-    const username = req.body.username.trim();
-    const password = req.body.password;
-
-    if (!username) {
-      return res.status(400).json({ error: "Username cannot be empty" });
+        .json({ error: "Username, email, and password are required" });
     }
 
-    const result = await createUser(username, password);
+    const result = await createUser(username, password, email);
     res.json({ status: "ACCEPTED", message: "User created" });
   } catch (error) {
     console.error("CreateUser error:", error);
@@ -297,11 +303,11 @@ db_connection.post("/createUser", async (req, res) => {
   }
 });
 
-async function createUser(sanitizedUsername, password) {
+async function createUser(sanitizedUsername, password, email) {
   return new Promise((resolve, reject) => {
     con.query(
-      "INSERT INTO User (username, password) VALUES (?, ?)",
-      [sanitizedUsername, password],
+      "INSERT INTO User (username, password, email) VALUES (?, ?, ?)",
+      [sanitizedUsername, password, email],
       function (err, result, fields) {
         if (err) {
           console.error("Database error in createUser:", err);
@@ -472,7 +478,7 @@ async function checkUserExists(sanitizedUsername) {
 
 db_connection.post("/checkToken", async (req, res) => {
   try {
-    const checkTokenRes = await checkToken(req);
+    const checkTokenRes = await checkToken(req.body.sessionToken);
 
     // matching session token and not expired
     if (checkTokenRes.length > 0) {
@@ -515,7 +521,15 @@ async function getSessionToken() {
 
 async function writeToken(email, authToken, sessionToken) {
   return new Promise((resolve, reject) => {
-    con.query("INSERT INTO LoginToken VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE), ?, 0)",
+    con.query("DELETE FROM LoginToken WHERE email = ?",
+      [email],
+      function (err, res) {
+        if (err) {
+          console.error("Error on deleting potential existing token from database:", err);
+        }
+        console.log("Successfully deleted potential existing token from database");
+      });
+    con.query("INSERT INTO LoginToken (email, authToken, expirationTime, sessionToken, numTries) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE), ?, 0)",
       [email, authToken, sessionToken], 
       function (err, res) {
         if (err) {
@@ -529,10 +543,10 @@ async function writeToken(email, authToken, sessionToken) {
   });
 }
 
-async function checkToken(req) {
+async function checkToken(sessionToken) {
   return new Promise((resolve, reject) => {
     con.query("SELECT * FROM LoginToken WHERE sessionToken = ? AND NOW() < expirationTime AND numTries < 5",
-      [req.body.sessionToken],
+      [sessionToken],
       function (err, res) {
         if (err) {
           console.error("Error on checking token in database:", err);
@@ -565,7 +579,7 @@ async function checkTokenFailure(sessionToken) {
       [sessionToken],
       function (err, res) {
         if (err) {
-          console.error("Error on deleting token in database:", err);
+          console.error("Error on checking token failure in database:", err);
           reject(err);
         }
         resolve(res.length > 0);
@@ -578,21 +592,6 @@ async function deleteTokenBySession(sessionToken) {
   return new Promise((resolve, reject) => {
     con.query("DELETE FROM LoginToken WHERE sessionToken = ?",
       [sessionToken],
-      function (err, res) {
-        if (err) {
-          console.error("Error on deleting token in database:", err);
-          reject(err);
-        }
-        resolve(null);
-      }
-    )
-  })
-}
-
-async function deleteTokenByEmail(email) {
-  return new Promise((resolve, reject) => {
-    con.query("DELETE FROM LoginToken WHERE email = ?",
-      [email],
       function (err, res) {
         if (err) {
           console.error("Error on deleting token in database:", err);

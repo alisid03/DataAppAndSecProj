@@ -24,6 +24,7 @@ const defaultTheme = createTheme();
 export default function SignupPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -45,19 +46,22 @@ export default function SignupPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!username.trim() || !password) {
-      showSnackbar("Username and password are required.", "warning");
+    if (!username.trim() || !email.trim() || !password) {
+      showSnackbar("Username, email, and password are required.", "warning");
       return;
     }
     setLoading(true);
 
     try {
       const trimmedUsername = username.trim();
+      const trimmedEmail = email.trim();
+
       const response = await fetch("http://localhost:8080/createUser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: trimmedUsername,
+          email: trimmedEmail,
           password: password,
         }),
       });
@@ -127,6 +131,17 @@ export default function SignupPage() {
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email"
+              name="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             <TextField
               margin="normal"
