@@ -166,6 +166,15 @@ const Home = () => {
             >
               Request Access
             </Button>
+            {/* Add Admin Page Button */}
+            <Button
+              variant="contained"
+              color="secondary" 
+              onClick={() => navigate("/admin")}
+              sx={styles.button} 
+            >
+              Admin Page
+            </Button>
           </Box>
         </>
       )}
