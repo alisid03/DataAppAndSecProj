@@ -15,6 +15,88 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Link from "@mui/material/Link";
 import Grid from "@mui/material/Grid";
 
+const serverPublicKeyPEM =`
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6ydIeeW5q98y6EusrAVR
+R431+Z1nLfIo+uQ2TDjexdZP8P6PLtp99z6EzwV7MRSduSArlS76sHBiNfZv6A8H
+bnowWa4o/I2y1LvuU/R6lJ/xwx1OhfA1kg0EoyuqoSxftulMCMnDxZmakHMQ1VUi
+v35vg75qERyJgS41p1GxUSaSMV6G/xFJoP98YWIBrWrJcI0F/PGuDzOIMCW/LSXb
+XsaQX+s6Mm/E9ix6We/oCTUORbT1nZIm0NZyF3jXfCJgk9puvwJK6CI0rhudaX4w
+UBCuJO3V4moP36reo54lG/2xBUJXWEk/hm4uF9w4V1obzUJnRtuTHThpJV+SMPxK
+2wIDAQAB
+-----END PUBLIC KEY-----
+`;
+
+async function importServerKey(pem) {
+    // fetch the part of the PEM string between header and footer
+    const cleanPem = pem
+      .replace(/-----BEGIN PUBLIC KEY-----/, "")
+      .replace(/-----END PUBLIC KEY-----/, "")
+      .replace(/\s+/g, "");
+  
+    // base64 decode the string to get the binary data
+    const der = Uint8Array.from(atob(cleanPem), c => c.charCodeAt(0));
+  
+    return await window.crypto.subtle.importKey(
+      "spki",
+      der.buffer,
+      {
+        name: "RSA-OAEP",
+        hash: "SHA-256",
+      },
+      true,
+      ["encrypt"],
+    );
+  }
+
+async function encryptPayload(publicKey, username, password, email){
+    const data = JSON.stringify({ username, password, email });
+    const encoded = new TextEncoder().encode(data);
+
+    const ciphertext = await window.crypto.subtle.encrypt(
+        {
+        name: "RSA-OAEP"
+        },
+        publicKey,
+        encoded
+    );
+
+    return btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
+}
+
+async function generateClientKeyPair() {
+  const keyPair = await window.crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,                
+      publicExponent: new Uint8Array([1, 0, 1]),  
+      hash: "SHA-256",                    // the hash to sign
+    },
+    true,                                 
+    ["sign", "verify"]                   
+  );
+  return keyPair;  // { publicKey: CryptoKey, privateKey: CryptoKey }
+}
+
+async function exportClientPublicKey(keyPair) {
+  const spki = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+  const b64 = btoa(String.fromCharCode(...new Uint8Array(spki)));
+  return `-----BEGIN PUBLIC KEY-----\n${b64.match(/.{1,64}/g).join("\n")}\n-----END PUBLIC KEY-----`;
+}
+
+async function signPayload(privateKey, username, password, email) {
+  const data = JSON.stringify({ username, password, email });
+  const encoded = new TextEncoder().encode(data);
+
+  const sigBuffer = await window.crypto.subtle.sign(
+    { name: "RSASSA-PKCS1-v1_5" },
+    privateKey,
+    encoded
+  );
+
+  return btoa(String.fromCharCode(...new Uint8Array(sigBuffer)));
+}
+
 const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
@@ -24,11 +106,17 @@ const defaultTheme = createTheme();
 export default function SignupPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("info");
+  const [clientKeyPair, setClientKeyPair] = React.useState(null);
+
+  React.useEffect(() => {
+      generateClientKeyPair().then(setClientKeyPair);
+    }, []);
 
   const handleSnackbarClose = (event, reason) => {
     if (reason === "clickaway") {
@@ -45,21 +133,35 @@ export default function SignupPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!username.trim() || !password) {
-      showSnackbar("Username and password are required.", "warning");
+    if (!username.trim() || !email.trim() || !password) {
+      showSnackbar("Username, email, and password are required.", "warning");
       return;
     }
     setLoading(true);
 
     try {
       const trimmedUsername = username.trim();
+      const trimmedEmail = email.trim();
+
+      const serverPublicKey = await importServerKey(serverPublicKeyPEM);
+      console.log("Imported public key:", serverPublicKey);
+      const signature = await signPayload(clientKeyPair.privateKey, trimmedUsername, password, trimmedEmail);
+      console.log("Signature (base64):", signature);
+
+      const encryptedPayload = await encryptPayload(serverPublicKey, username, password, email);
+      console.log("Encrypted payload (base64):", encryptedPayload);
+
+      const body = { 
+        encrypted: encryptedPayload,
+        signature,
+        clientPublicKey: await exportClientPublicKey(clientKeyPair)
+      };
+      console.log("Sending client public key:", body.clientPublicKey);
+
       const response = await fetch("http://localhost:8080/createUser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: trimmedUsername,
-          password: password,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -127,6 +229,17 @@ export default function SignupPage() {
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email"
+              name="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             <TextField
               margin="normal"

@@ -217,6 +217,21 @@ function decryptPayload(base64Encrypted) {
   ).toString('utf8');
 }
 
+function verifyPayload(payload, publicKey, signature) {
+  // create temp signature with verifier
+  const verifier = crypto.createVerify("SHA256");
+  verifier.update(JSON.stringify(payload));
+  verifier.end();
+
+  const sigBuffer = Buffer.from(signature, "base64");
+
+  // compare signatures
+  return verifier.verify(
+    { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING },
+    sigBuffer
+  )
+}
+
 db_connection.post("/getUser", async (req, res) => {
   try {
     const decrypted = decryptPayload(req.body.encrypted);
@@ -224,27 +239,16 @@ db_connection.post("/getUser", async (req, res) => {
     const { username, password } = JSON.parse(decrypted);
     const signature = req.body.signature;
   
-
     console.log("Incoming /getUser body:", req.body);
-
     req.body.username = username;
     req.body.password = password;
 
-    const verifier = crypto.createVerify("SHA256");
-    const payloadStr = JSON.stringify({ username, password });
-    verifier.update(payloadStr);
-    verifier.end();
-
-    const sigBuffer = Buffer.from(signature, "base64");
     const clientPub = req.body.clientPublicKey;
     if (!clientPub) {
       return res.status(400).json({ status: "REJECTED", error: "Client public key not registered" });
     }
 
-    const valid = verifier.verify(
-      { key: clientPub, padding: crypto.constants.RSA_PKCS1_PADDING },
-      sigBuffer
-    );
+    const valid = verifyPayload({ username, password }, clientPub, signature);
     if (!valid) {
       return res.status(400).json({ status: "REJECTED", error: "Invalid signature" });
     }
@@ -253,7 +257,6 @@ db_connection.post("/getUser", async (req, res) => {
     let responseData = { status: "REJECTED" };
 
     if (userResult && userResult.password == req.body.password) {
-      await deleteTokenByEmail(userResult.email);
       const sessionToken = await getSessionToken();
 
       // get auth and session tokens and send email to user
@@ -355,19 +358,37 @@ async function getUsers(request) {
 
 db_connection.post("/createUser", async (req, res) => {
   try {
-    if (!req.body.username || !req.body.password) {
+    const decrypted = decryptPayload(req.body.encrypted);
+    const { username, password, email } = JSON.parse(decrypted);
+    const signature = req.body.signature;
+
+    const clientPub = req.body.clientPublicKey;
+    if (!clientPub) {
+      return res.status(400).json({ status: "REJECTED", error: "Client public key not registered" });
+    }
+
+    const valid = verifyPayload({ username, password, email }, clientPub, signature);
+    if (!valid) {
+      return res.status(400).json({ status: "REJECTED", error: "Invalid signature" });
+    }
+
+    const userBadRegex = new RegExp("[^a-zA-Z0-9]");
+    const emailBadRegex = new RegExp("[^a-zA-Z0-9@.]");
+
+    if (username != encodeURIComponent(username).replace(userBadRegex, "")) {
+      return res.status(400).json({ error: "Username cannot contain any special characters." });
+    }
+    if (email != encodeURIComponent(email).replace("%40", "@").replace(emailBadRegex, "")) {
+      return res.status(400).json({ error: "Email cannot contain any special characters." });
+    }
+
+    if (!username || !email || !password) {
       return res
         .status(400)
-        .json({ error: "Username and password are required" });
-    }
-    const username = req.body.username.trim();
-    const password = req.body.password;
-
-    if (!username) {
-      return res.status(400).json({ error: "Username cannot be empty" });
+        .json({ error: "Username, email, and password are required" });
     }
 
-    const result = await createUser(username, password);
+    const result = await createUser(username, password, email);
     res.json({ status: "ACCEPTED", message: "User created" });
   } catch (error) {
     console.error("CreateUser error:", error);
@@ -379,11 +400,11 @@ db_connection.post("/createUser", async (req, res) => {
   }
 });
 
-async function createUser(sanitizedUsername, password) {
+async function createUser(sanitizedUsername, password, email) {
   return new Promise((resolve, reject) => {
     con.query(
-      "INSERT INTO User (username, password) VALUES (?, ?)",
-      [sanitizedUsername, password],
+      "INSERT INTO User (username, password, email) VALUES (?, ?, ?)",
+      [sanitizedUsername, password, email],
       function (err, result, fields) {
         if (err) {
           console.error("Database error in createUser:", err);
@@ -562,7 +583,7 @@ db_connection.post("/checkToken", async (req, res) => {
     req.body.authToken = authToken;
     req.body.sessionToken = sessionToken;
 
-    const checkTokenRes = await checkToken(req);
+    const checkTokenRes = await checkToken(req.body.sessionToken);
 
     // matching session token and not expired
     if (checkTokenRes.length > 0) {
@@ -605,7 +626,15 @@ async function getSessionToken() {
 
 async function writeToken(email, authToken, sessionToken) {
   return new Promise((resolve, reject) => {
-    con.query("INSERT INTO LoginToken VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE), ?, 0)",
+    con.query("DELETE FROM LoginToken WHERE email = ?",
+      [email],
+      function (err, res) {
+        if (err) {
+          console.error("Error on deleting potential existing token from database:", err);
+        }
+        console.log("Successfully deleted potential existing token from database");
+      });
+    con.query("INSERT INTO LoginToken (email, authToken, expirationTime, sessionToken, numTries) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE), ?, 0)",
       [email, authToken, sessionToken], 
       function (err, res) {
         if (err) {
@@ -619,10 +648,10 @@ async function writeToken(email, authToken, sessionToken) {
   });
 }
 
-async function checkToken(req) {
+async function checkToken(sessionToken) {
   return new Promise((resolve, reject) => {
     con.query("SELECT * FROM LoginToken WHERE sessionToken = ? AND NOW() < expirationTime AND numTries < 5",
-      [req.body.sessionToken],
+      [sessionToken],
       function (err, res) {
         if (err) {
           console.error("Error on checking token in database:", err);
@@ -655,7 +684,7 @@ async function checkTokenFailure(sessionToken) {
       [sessionToken],
       function (err, res) {
         if (err) {
-          console.error("Error on deleting token in database:", err);
+          console.error("Error on checking token failure in database:", err);
           reject(err);
         }
         resolve(res.length > 0);
@@ -668,21 +697,6 @@ async function deleteTokenBySession(sessionToken) {
   return new Promise((resolve, reject) => {
     con.query("DELETE FROM LoginToken WHERE sessionToken = ?",
       [sessionToken],
-      function (err, res) {
-        if (err) {
-          console.error("Error on deleting token in database:", err);
-          reject(err);
-        }
-        resolve(null);
-      }
-    )
-  })
-}
-
-async function deleteTokenByEmail(email) {
-  return new Promise((resolve, reject) => {
-    con.query("DELETE FROM LoginToken WHERE email = ?",
-      [email],
       function (err, res) {
         if (err) {
           console.error("Error on deleting token in database:", err);

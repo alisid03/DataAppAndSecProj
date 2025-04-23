@@ -91,8 +91,6 @@ export default function Verify() {
         setSnackbarOpen(true);
     };
 
-    
-
     async function handleSubmit(event) {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
