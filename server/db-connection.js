@@ -217,6 +217,21 @@ function decryptPayload(base64Encrypted) {
   ).toString('utf8');
 }
 
+function verifyPayload(payload, publicKey, signature) {
+  // create temp signature with verifier
+  const verifier = crypto.createVerify("SHA256");
+  verifier.update(JSON.stringify(payload));
+  verifier.end();
+
+  const sigBuffer = Buffer.from(signature, "base64");
+
+  // compare signatures
+  return verifier.verify(
+    { key: publicKey, padding: crypto.constants.RSA_PKCS1_PADDING },
+    sigBuffer
+  )
+}
+
 db_connection.post("/getUser", async (req, res) => {
   try {
     const decrypted = decryptPayload(req.body.encrypted);
@@ -224,27 +239,16 @@ db_connection.post("/getUser", async (req, res) => {
     const { username, password } = JSON.parse(decrypted);
     const signature = req.body.signature;
   
-
     console.log("Incoming /getUser body:", req.body);
-
     req.body.username = username;
     req.body.password = password;
 
-    const verifier = crypto.createVerify("SHA256");
-    const payloadStr = JSON.stringify({ username, password });
-    verifier.update(payloadStr);
-    verifier.end();
-
-    const sigBuffer = Buffer.from(signature, "base64");
     const clientPub = req.body.clientPublicKey;
     if (!clientPub) {
       return res.status(400).json({ status: "REJECTED", error: "Client public key not registered" });
     }
 
-    const valid = verifier.verify(
-      { key: clientPub, padding: crypto.constants.RSA_PKCS1_PADDING },
-      sigBuffer
-    );
+    const valid = verifyPayload({ username, password }, clientPub, signature);
     if (!valid) {
       return res.status(400).json({ status: "REJECTED", error: "Invalid signature" });
     }
@@ -354,9 +358,20 @@ async function getUsers(request) {
 
 db_connection.post("/createUser", async (req, res) => {
   try {
-    const username = req.body.username;
-    const email = req.body.email;
-    const password = req.body.password;
+    const decrypted = decryptPayload(req.body.encrypted);
+    const { username, password, email } = JSON.parse(decrypted);
+    const signature = req.body.signature;
+
+    const clientPub = req.body.clientPublicKey;
+    if (!clientPub) {
+      return res.status(400).json({ status: "REJECTED", error: "Client public key not registered" });
+    }
+
+    const valid = verifyPayload({ username, password, email }, clientPub, signature);
+    if (!valid) {
+      return res.status(400).json({ status: "REJECTED", error: "Invalid signature" });
+    }
+
     const userBadRegex = new RegExp("[^a-zA-Z0-9]");
     const emailBadRegex = new RegExp("[^a-zA-Z0-9@.]");
 

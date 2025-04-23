@@ -118,10 +118,6 @@ export default function TestLoginPage() {
     const data = new FormData(event.currentTarget);
     const username = data.get("username");
     const password = data.get("password");
-    
-    if (!clientKeyPair) {
-      return alert("Still generating keys, please wait a moment...");
-    }
 
     try {
       const serverPublicKey = await importServerKey(serverPublicKeyPEM);
