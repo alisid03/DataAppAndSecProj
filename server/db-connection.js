@@ -65,9 +65,6 @@ oY1fRpUw1yIHjXWaOjX7hITJ
 
 
 
-
-
-
 //getData function with Whitelisting
 async function getData(tableName) {
   return new Promise((resolve, reject) => {
@@ -226,11 +223,12 @@ db_connection.post("/getUser", async (req, res) => {
 
     const { username, password } = JSON.parse(decrypted);
     const signature = req.body.signature;
-    
-    req.body.username = username;
-    req.body.password = password;
+  
 
     console.log("Incoming /getUser body:", req.body);
+
+    req.body.username = username;
+    req.body.password = password;
 
     const verifier = crypto.createVerify("SHA256");
     const payloadStr = JSON.stringify({ username, password });
@@ -273,7 +271,7 @@ db_connection.post("/getUser", async (req, res) => {
 
       await writeToken(userResult.email, resJson.authToken, sessionToken);
 
-      responseData = { username: userResult.username, sessionToken: resJson.sessionToken, status: "ACCEPTED" }; 
+      responseData = { username: userResult.username, sessionToken: sessionToken, status: "ACCEPTED" }; 
 
     } else if (userResult) {
       responseData.error = "Incorrect password";
@@ -557,6 +555,13 @@ async function checkUserExists(sanitizedUsername) {
 db_connection.post("/checkToken", async (req, res) => {
   try {
     //decrypt request (auth token, session token)
+    const decrypted = decryptPayload(req.body.encrypted);
+
+
+    const { authToken, sessionToken } = JSON.parse(decrypted);
+    req.body.authToken = authToken;
+    req.body.sessionToken = sessionToken;
+
     const checkTokenRes = await checkToken(req);
 
     // matching session token and not expired
