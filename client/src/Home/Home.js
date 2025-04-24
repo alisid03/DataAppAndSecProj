@@ -18,24 +18,32 @@ const Home = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("info");
 
-  // Read username and allowed features from sessionStorage on component mount
+  
+  const [isAdmin, setIsAdmin] = useState(false);
+
   useEffect(() => {
     setError(null);
     const storedUsername = sessionStorage.getItem("username");
     const storedAccessJson = sessionStorage.getItem("access");
+    const storedIsAdmin = sessionStorage.getItem("isAdmin");
 
     if (!storedUsername || !storedAccessJson) {
       setError(
         "User not logged in or permissions missing. Redirecting to login..."
       );
-      // Clear potentially partial session data
+
       sessionStorage.removeItem("username");
       sessionStorage.removeItem("access");
+      sessionStorage.removeItem("isAdmin");
       setTimeout(() => navigate("/"), 1500);
       return;
     }
 
     setUsername(storedUsername);
+    
+    // Set admin status 
+    setIsAdmin(storedIsAdmin === "1" || storedIsAdmin === 1 || storedIsAdmin === true);
+    console.log("Admin status:", storedIsAdmin);
 
     try {
       const parsedFeatures = JSON.parse(storedAccessJson);
@@ -47,6 +55,7 @@ const Home = () => {
         setError("Invalid permission data format. Please log in again.");
         sessionStorage.removeItem("username");
         sessionStorage.removeItem("access");
+        sessionStorage.removeItem("isAdmin");
         setTimeout(() => navigate("/"), 1500);
       }
     } catch (parseError) {
@@ -54,6 +63,7 @@ const Home = () => {
       setError("Failed to read permission data. Please log in again.");
       sessionStorage.removeItem("username");
       sessionStorage.removeItem("access");
+      sessionStorage.removeItem("isAdmin");
       setTimeout(() => navigate("/"), 1500);
     }
   }, [navigate]);
@@ -136,7 +146,7 @@ const Home = () => {
           >
             {Object.entries(featureMap).map(([buttonNumberStr, feature]) => {
               const buttonNumber = parseInt(buttonNumberStr, 10);
-              // Perform a case-insensitive check
+          
               const isAllowed = allowedFeatures.some(
                 (allowedName) =>
                   allowedName.toLowerCase() === feature.name.toLowerCase()
@@ -166,15 +176,17 @@ const Home = () => {
             >
               Request Access
             </Button>
-            {/* Add Admin Page Button */}
-            <Button
-              variant="contained"
-              color="secondary" 
-              onClick={() => navigate("/admin")}
-              sx={styles.button} 
-            >
-              Admin Page
-            </Button>
+            
+            {isAdmin && (
+              <Button
+                variant="contained"
+                color="secondary" 
+                onClick={() => navigate("/admin")}
+                sx={styles.button} 
+              >
+                Admin Page
+              </Button>
+            )}
           </Box>
         </>
       )}

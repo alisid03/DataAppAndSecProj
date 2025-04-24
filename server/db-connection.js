@@ -274,7 +274,13 @@ db_connection.post("/getUser", async (req, res) => {
 
       await writeToken(userResult.email, resJson.authToken, sessionToken);
 
-      responseData = { username: userResult.username, sessionToken: sessionToken, status: "ACCEPTED" }; 
+      // Include isAdmin status in the response
+      responseData = { 
+        username: userResult.username, 
+        sessionToken: sessionToken, 
+        isAdmin: userResult.isAdmin,
+        status: "ACCEPTED" 
+      }; 
 
     } else if (userResult) {
       responseData.error = "Incorrect password";

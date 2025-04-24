@@ -153,6 +153,8 @@ export default function TestLoginPage() {
       if (loginResponseJson.status == ACCEPTED) {
         sessionStorage.setItem("username", data.get("username"));
         sessionStorage.setItem("sessionToken", loginResponseJson.sessionToken);
+        // Store the isAdmin status
+        sessionStorage.setItem("isAdmin", loginResponseJson.isAdmin); 
         navigate("/verify");
       } else {
         const errorMessage =

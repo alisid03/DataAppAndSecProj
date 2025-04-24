@@ -14,6 +14,7 @@ import ProductsTables from "./DataViews/Products";
 import SignupPage from "./SignupPage";
 import RequestPage from "./RequestPage";
 import VerifyPage from "./Verify";
+import AdminRoute from "./components/AdminRoute";
 import {
   BrowserRouter as Router,
   Routes,
@@ -164,8 +165,13 @@ function App() {
           <Route path="/request" element={<RequestPage />} />
           <Route path="/verify" element={<VerifyPage />} />
           {/* Added routes for Data Views */}
-          <Route path='/admin' element={<AdminPage/>}></Route>
-            {/* Added routes for Data Views */}
+          {/* Protected Admin Route - only accessible to admin users */}
+          <Route path='/admin' element={
+            <AdminRoute>
+              <AdminPage/>
+            </AdminRoute>
+          }></Route>
+          {/* Added routes for Data Views */}
           <Route path="/getReviews" element={<ReviewTables />} />
           <Route path="/getCategories" element={<CategoriesTables />} />
           <Route path="/getCustomers" element={<CustomersTables />} />
